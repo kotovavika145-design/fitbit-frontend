@@ -39,14 +39,14 @@ async function handleLogin() {
     })
 
     if (response.status === 401) {
-  erreur.value = 'Identifiant ou mot de passe incorrect.'
-  return
-}
+      erreur.value = 'Identifiant ou mot de passe incorrect.'
+      return
+    }
 
-if (!response.ok) {
-  erreur.value = 'Erreur de connexion au serveur.'
-  return
-}
+    if (!response.ok) {
+      erreur.value = 'Erreur de connexion au serveur.'
+      return
+    }
 
     const user = await response.json()
     localStorage.setItem('lunara_user', JSON.stringify(user))
