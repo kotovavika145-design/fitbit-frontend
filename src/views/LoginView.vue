@@ -29,7 +29,7 @@ async function handleLogin() {
   try {
     const role = profil.value === 'Étudiant' ? 'student' : 'pilot'
 
-    const response = await fetch(`${API_URL}/api/users/login`, {
+    const response = await fetch(`${API_URL}/users/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -37,11 +37,6 @@ async function handleLogin() {
         password: motDePasse.value
       })
     })
-
-    if (response.status === 401) {
-      erreur.value = 'Identifiant ou mot de passe incorrect.'
-      return
-    }
 
     if (!response.ok) {
       erreur.value = 'Erreur de connexion au serveur.'

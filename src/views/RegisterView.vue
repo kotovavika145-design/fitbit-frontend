@@ -69,7 +69,6 @@ import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 
 const router = useRouter()
-const API_URL = import.meta.env.VITE_API_URL
 
 const prenom    = ref('')
 const nom       = ref('')
@@ -78,6 +77,8 @@ const motDePasse = ref('')
 const profil    = ref('Étudiant')
 const erreur    = ref('')
 const succes    = ref('')
+
+const API_URL = import.meta.env.VITE_API_URL
 
 async function handleRegister() {
   erreur.value = ''
@@ -104,7 +105,7 @@ async function handleRegister() {
   try {
     const role = profil.value === 'Étudiant' ? 'student' : 'teacher'
 
-    const response = await fetch(`${API_URL}/api/users`, {
+    const response = await fetch(`${API_URL}/users`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({

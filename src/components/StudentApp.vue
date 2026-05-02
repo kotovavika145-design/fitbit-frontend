@@ -498,7 +498,6 @@
 import{ io } from 'socket.io-client'
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import { useRouter } from 'vue-router'
-const API_URL = import.meta.env.VITE_API_URL
 const router = useRouter()
 // Récupère l'utilisateur connecté depuis le localStorage
 const userConnecte = ref(JSON.parse(localStorage.getItem('lunara_user') || '{}'))
@@ -513,8 +512,11 @@ const historiqueCharge = ref([])
 const historiqueFC = ref([])
 let fitbitPollInterval = null
 
+const API_URL = import.meta.env.VITE_API_URL
+const SOCKET_URL = import.meta.env.VITE_SOCKET_URL
+
 //Connexion au serveur Websocket
-const socket = io (API_URL, {
+const socket = io (SOCKET_URL, {
   transports: ['websocket', 'polling']
 })
 socket.on('connect', ()=>{
@@ -524,6 +526,7 @@ socket.on('connect', ()=>{
 socket.on('connect_error', (err) => {
   console.log('Erreur connexion socket:', err)
 })
+
 
 //Quand le prof lance la session, on demarre le timer 
 socket.on('session_demarree', async (data) => {
@@ -535,7 +538,7 @@ socket.on('session_demarree', async (data) => {
   
   // Récupérer la session active et démarrer le polling Fitbit
   try {
-    const res = await fetch(`${API_URL}/api/sessions/active`)
+    const res = await fetch(`${API_URL}/sessions/active`)
     if (res.ok) {
       const session = await res.json()
       demarrerPollFitbit(session.id)
@@ -692,7 +695,7 @@ async function verifierFitbit() {
 
     // Envoie une requête HTTP vers ton backend pour vérifier l'état de la connexion Fitbit
     // On passe l'ID de l'utilisateur connecté pour savoir s'il a déjà autorisé l'app
-    const res = await fetch(`${API_URL}/api/fitbit/status/${userConnecte.value.id}`)
+    const res = await fetch(`${API_URL}/fitbit/status/${userConnecte.value.id}`)
 
     // Conversion de la réponse en JSON
     // Exemple de réponse attendue :
@@ -735,7 +738,7 @@ async function lancerOAuthFitbit() {
     console.log("CLICK OK")
     console.log("USER:", userConnecte.value)
 
-    const res = await fetch(`${API_URL}/api/fitbit/authorize/${userConnecte.value.id}`)
+    const res = await fetch(`${API_URL}/fitbit/authorize/${userConnecte.value.id}`)
     const data = await res.json()
 
     console.log("DATA:", data)
@@ -760,7 +763,7 @@ function demarrerPollFitbit(sessionId) {
 
       // Envoi d'une requête POST vers ton backend pour récupérer un "sample" de données Fitbit
       // L'URL contient l'ID de la session en cours
-      const res = await fetch(`${API_URL}/api/sessions/${sessionId}/sample`, {
+      const res = await fetch(`${API_URL}/sessions/${sessionId}/sample`, {
 
         // Méthode POST → probablement pour déclencher une récupération côté serveur
         method: 'POST',
@@ -952,7 +955,7 @@ async function validerQuestionnaire() {
 
     // Récupère la session active depuis le backend
     // (session en cours où l'utilisateur va être ajouté)
-    const sessionActiveRes = await fetch(`${API_URL}/api/sessions/active`)
+    const sessionActiveRes = await fetch(`${API_URL}/sessions/active`)
 
     // Conversion de la réponse en JSON
     const sessionActive = await sessionActiveRes.json()
@@ -962,7 +965,7 @@ async function validerQuestionnaire() {
 
       // Étape 1 : rejoindre la session active
       // On envoie l'utilisateur dans la session en cours
-      await fetch(`${API_URL}/api/sessions/${sessionActive.id}/join`, {
+      await fetch(`${API_URL}/sessions/${sessionActive.id}/join`, {
 
         method: 'POST',
 
@@ -975,7 +978,7 @@ async function validerQuestionnaire() {
 
       // Étape 2 : clôturer la session avec les résultats NASA-TLX
       // Ici on envoie les réponses du questionnaire pour analyse côté backend
-      const putRes = await fetch(`${API_URL}/api/sessions/${sessionActive.id}/end`, {
+      const putRes = await fetch(`${API_URL}/sessions/${sessionActive.id}/end`, {
 
         method: 'PUT',
 
@@ -1028,7 +1031,7 @@ const historique = ref([])
 async function chargerHistorique() {
   if (!userConnecte.value.id) return
   try {
-    const response = await fetch(`${API_URL}/api/sessions/user/${userConnecte.value.id}`)
+    const response = await fetch(`${API_URL}/sessions/user/${userConnecte.value.id}`)
     if (response.ok) {
       historique.value = await response.json()
     }

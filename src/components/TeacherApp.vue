@@ -415,7 +415,11 @@
 
 <script>
 import { io } from 'socket.io-client'
+
 const API_URL = import.meta.env.VITE_API_URL
+const SOCKET_URL = import.meta.env.VITE_SOCKET_URL
+
+
 export default {
   name: 'App',
 
@@ -562,7 +566,7 @@ export default {
     async chargerHistorique() {
       try {
         
-        const response = await fetch(`${API_URL}/api/sessions/created_by/${this.userConnecte.id}`)
+        const response = await fetch(`${API_URL}/sessions/created_by/${this.userConnecte.id}`)
         if (response.ok) {
           const sessions = await response.json()
           if (sessions.length > 0) {
@@ -587,7 +591,7 @@ export default {
     //Met à jour deux listes students et groupDetails
     async chargerGroupeDetails() {
       try {
-        const response = await fetch(`${API_URL}/api/users?role=student`)
+        const response = await fetch(`${API_URL}/users?role=student`)
         if (response.ok) {
           const users = await response.json()
           if (users.length > 0) {
@@ -595,7 +599,7 @@ export default {
             // Pour chaque étudiant, on récupère sa dernière session
             const details = await Promise.all(users.map(async u => {
               try {
-                const sessRes = await fetch(`${API_URL}/api/sessions/user/${u.id}`)
+                const sessRes = await fetch(`${API_URL}/sessions/user/${u.id}`)
                 if (sessRes.ok) {
                   const sessions = await sessRes.json()
                   const lastSession = sessions[0] // Session la plus récente
@@ -679,7 +683,7 @@ export default {
     },
     async chargerEtudiants() {
       try {
-        const response = await fetch(`${API_URL}/api/users?role=student`)
+        const response = await fetch(`${API_URL}/users?role=student`)
         if (response.ok) {
           const users = await response.json()
           if (users.length > 0) {
@@ -715,7 +719,7 @@ export default {
   // Sauvegarde la session dans le backend
   try {
     console.log('userConnecte:', this.userConnecte)
-    const response = await fetch(`${API_URL}/api/sessions`, {
+    const response = await fetch(`${API_URL}/sessions`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -871,7 +875,9 @@ export default {
   },
   mounted() {
     //Connexionn au serveur Websocket
-    this.socket = io(API_URL)
+    this.socket = io(SOCKET_URL, {
+      transports: ['websocket', 'polling']
+    })
 
     //Quand un etudiant soumet son score on met a jour la vue groupe 
     this.socket.on('nouveau_score', (data)=>{
