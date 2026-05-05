@@ -861,9 +861,9 @@ async function chargerSessionActive() {
       }
 
       if (session.start_time) {
-        const start = new Date(session.start_time)
+        const start = new Date(session.start_time + 'Z')
         const now = new Date()
-        elapsed.value = Math.floor((now - start) / 1000)
+        elapsed.value = Math.max(0, Math.floor((now - start) / 1000))
         startTimer()
       }
 
