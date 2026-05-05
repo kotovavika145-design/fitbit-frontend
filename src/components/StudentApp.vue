@@ -73,12 +73,12 @@
       <div id="s-session" class="page" v-show="activePage==='s-session'">
         <div class="page-header">
           <div>
-            <h1>Session en cours</h1>
+            <h1>{{ sessionName }}</h1>
             <!--
               TODO (synchro backend) : remplacer par les vraies infos de session
               reçues du serveur quand l'enseignant lance la session.
             -->
-            <p>Cours de Bases de Données — Salle 204</p>
+            <p>{{ sessionGroup || 'Session en cours' }}</p>
           </div>
           <!-- Display flex pour aligner les boutons horizontalement -->
           <div style="display:flex;gap:.7rem">
@@ -150,22 +150,22 @@
         <div class="grid-4">
           <div class="card">
             <div class="card-header"><span class="card-title">Charge mentale</span><span class="badge mid">Modérée</span></div>
-            <div class="card-value" style="color:var(--warn)">{{ chargeMentale }}</div>
+            <div class="card-value" style="color:var(--warn)">{{ chargeMentale ?? '-'}}</div>
             <div class="card-sub">Score sur 100</div>
           </div>
           <div class="card">
             <div class="card-header"><span class="card-title">Fréq. cardiaque</span><span style="font-size:.8rem;color:var(--muted)">bpm</span></div>
-            <div class="card-value">{{ heartRate }}</div>
+            <div class="card-value">{{ heartRate ?? '-' }}</div>
             <div class="card-sub">Repos moyen: 65 bpm</div>
           </div>
           <div class="card">
             <div class="card-header"><span class="card-title">HRV</span><span style="font-size:.8rem;color:var(--muted)">ms</span></div>
-            <div class="card-value" style="color:var(--accent2)">{{ hrv }}</div>
+            <div class="card-value" style="color:var(--accent2)">{{ hrv ?? '-'}}</div>
             <div class="card-sub">Variabilité cardiaque</div>
           </div>
           <div class="card">
             <div class="card-header"><span class="card-title">Fréq. resp.</span><span style="font-size:.8rem;color:var(--muted)">rpm</span></div>
-            <div class="card-value">{{ breathingRate }}</div>
+            <div class="card-value">{{ breathingRate ?? '-'}}</div>
             <div class="card-sub">Respirations/min</div>
           </div>
         </div>
@@ -333,7 +333,7 @@
             <!--
               TODO (synchro backend) : remplacer par les vraies infos de session.
             -->
-            <p>Cours BDD — {{ todayDate }} · {{ sessionDuration }}</p>
+            <p>{{ sessionName }} — {{ todayDate }} · {{ sessionDuration }}</p>
           </div>
           <!-- MODIFIÉ : bouton export fonctionnel -->
           <button class="btn-outline" @click="exporterResultats">⬇ Exporter</button>
@@ -470,7 +470,7 @@
               -->
               <tr v-if="questionnaireValide">
                 <td>{{ todayDate }}</td>
-                <td>Bases de Données</td>
+                <td>{{ sessionName }}</td>
                 <td>{{ formattedTime }}</td>
                 <td>{{ averageScore.toFixed(1) }}</td>
                 <td style="font-weight:600;color:var(--warn)">{{ scoreGlobal }}</td>
@@ -502,14 +502,18 @@ const router = useRouter()
 // Récupère l'utilisateur connecté depuis le localStorage
 const userConnecte = ref(JSON.parse(localStorage.getItem('lunara_user') || '{}'))
 const fitbitConnecte = ref(false)
-const heartRate = ref(82)
-const hrv = ref(42)
-const breathingRate = ref(17)
-const chargeMentale = ref(68)
+const heartRate = ref(null)
+const hrv = ref(null)
+const breathingRate = ref(null)
+const chargeMentale = ref(null)
 // Historique des valeurs pour les graphiques temps réel
 // Chaque entrée = { temps: 'mm:ss', valeur: number }
 const historiqueCharge = ref([])
 const historiqueFC = ref([])
+
+const sessionName = ref('Session en cours')
+const sessionGroup = ref('')
+
 let fitbitPollInterval = null
 
 const API_URL = import.meta.env.VITE_API_URL
@@ -530,6 +534,7 @@ socket.on('connect_error', (err) => {
 
 //Quand le prof lance la session, on demarre le timer 
 socket.on('session_demarree', async (data) => {
+  sessionName.value = data.nom || 'Session en cours'
   sessionDuration.value = data.duree || '1h00'
   dureeTotaleSecondes.value = data.dureeSecondes || 3600
   elapsed.value = 0
@@ -543,7 +548,9 @@ socket.on('session_demarree', async (data) => {
       const session = await res.json()
       demarrerPollFitbit(session.id)
     }
-  } catch (e) {}
+  } catch (e) {
+      console.error('Erreur récupération session active:', e)
+    }
 })
 //Quand le prof termine la session on redirige vers le questionnaire 
 socket.on('aller_questionnaire', () => {
@@ -792,16 +799,16 @@ function demarrerPollFitbit(sessionId) {
 
         // Si une nouvelle valeur existe → on la prend
         // Sinon → on garde l'ancienne valeur (fallback)
-        heartRate.value = data.heart_rate || heartRate.value
+        heartRate.value = data.heart_rate ?? null
 
         // Variabilité de la fréquence cardiaque (HRV)
-        hrv.value = data.hrv || hrv.value
+        hrv.value = data.hrv ?? null
 
         // Fréquence respiratoire
-        breathingRate.value = data.breathing_rate || breathingRate.value
+        breathingRate.value = data.breathing_rate ?? null
 
         // Score de charge mentale (calculé côté backend)
-        chargeMentale.value = data.mental_load_score || chargeMentale.value
+        chargeMentale.value = data.mental_load_score ?? null
         // Accumulation des valeurs pour les graphiques
         // On garde maximum 60 points (60 minutes de session)
         if (data.mental_load_score) {
@@ -828,11 +835,45 @@ function demarrerPollFitbit(sessionId) {
 
       // Tu pourrais au minimum faire :
       // console.error('Erreur polling Fitbit', e)
+      console.error('Erreur polling Fitbit:', e)
     }
 
   }, 10000) // intervalle de 10 secondes
 }
  
+async function chargerSessionActive() {
+  try {
+    const res = await fetch(`${API_URL}/sessions/active`)
+
+    if (res.ok) {
+      const session = await res.json()
+      console.log("Session active :", session)
+
+      sessionName.value = session.name || 'Session en cours'
+      sessionGroup.value = session.group_name || ''
+
+      if (timerInterval) clearInterval(timerInterval)
+      if (fitbitPollInterval) clearInterval(fitbitPollInterval)
+
+      if (session.duration_minutes) {
+        dureeTotaleSecondes.value = session.duration_minutes * 60
+        sessionDuration.value = `${session.duration_minutes} minutes`
+      }
+
+      if (session.start_time) {
+        const start = new Date(session.start_time)
+        const now = new Date()
+        elapsed.value = Math.floor((now - start) / 1000)
+        startTimer()
+      }
+
+      demarrerPollFitbit(session.id)
+    }
+  } catch (e) {
+    console.error("Erreur session active:", e)
+  }
+}
+
 // CYCLE DE VIE
 // CYCLE DE VIE DU COMPOSANT (Vue.js)
 
@@ -878,6 +919,8 @@ onMounted(async () => {
     // - sinon → lance OAuth
     await verifierFitbit()
   }
+
+  await chargerSessionActive()
 })
 
 
