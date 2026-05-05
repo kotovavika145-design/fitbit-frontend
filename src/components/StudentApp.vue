@@ -761,84 +761,57 @@ async function lancerOAuthFitbit() {
   }
 }
 // Fonction qui démarre un "polling" (appel répété) pour récupérer les données Fitbit
-function demarrerPollFitbit(sessionId) {
+async function recupererSampleFitbit(sessionId) {
+  try {
+    const res = await fetch(`${API_URL}/sessions/${sessionId}/sample`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ user_id: userConnecte.value.id })
+    })
 
-  // setInterval permet d'exécuter une fonction toutes les X millisecondes
-  // Ici → toutes les 10 secondes (10000 ms)
-  fitbitPollInterval = setInterval(async () => {
-    try {
+    const data = await res.json()
+    console.log('Sample Fitbit reçu :', data)
 
-      // Envoi d'une requête POST vers ton backend pour récupérer un "sample" de données Fitbit
-      // L'URL contient l'ID de la session en cours
-      const res = await fetch(`${API_URL}/sessions/${sessionId}/sample`, {
-
-        // Méthode POST → probablement pour déclencher une récupération côté serveur
-        method: 'POST',
-
-        // On précise que le body est en JSON
-        headers: { 'Content-Type': 'application/json' },
-
-        // On envoie l'ID de l'utilisateur connecté dans le body
-        body: JSON.stringify({ user_id: userConnecte.value.id })
-      })
-
-      // Vérifie que la requête HTTP s'est bien passée (status 200–299)
-      if (res.ok) {
-
-        // Conversion de la réponse en JSON
-        // Exemple attendu :
-        // {
-        //   heart_rate: 72,
-        //   hrv: 45,
-        //   breathing_rate: 14,
-        //   mental_load_score: 30
-        // }
-        const data = await res.json()
-
-        // Mise à jour des valeurs dans ton state (probablement des refs Vue.js)
-
-        // Si une nouvelle valeur existe → on la prend
-        // Sinon → on garde l'ancienne valeur (fallback)
-        heartRate.value = data.heart_rate ?? null
-
-        // Variabilité de la fréquence cardiaque (HRV)
-        hrv.value = data.hrv ?? null
-
-        // Fréquence respiratoire
-        breathingRate.value = data.breathing_rate ?? null
-
-        // Score de charge mentale (calculé côté backend)
-        chargeMentale.value = data.mental_load_score ?? null
-        // Accumulation des valeurs pour les graphiques
-        // On garde maximum 60 points (60 minutes de session)
-        if (data.mental_load_score) {
-          historiqueCharge.value.push({
-            temps: formattedTime.value,
-            valeur: data.mental_load_score
-          })
-          if (historiqueCharge.value.length > 60) historiqueCharge.value.shift()
-        }
-        if (data.heart_rate) {
-          historiqueFC.value.push({
-            temps: formattedTime.value,
-            valeur: data.heart_rate
-          })
-          if (historiqueFC.value.length > 60) historiqueFC.value.shift()
-        }
-
-      }
-
-    } catch (e) {
-
-      // Ici tu ignores complètement les erreurs (catch vide)
-      // ⚠️ Pas idéal pour debug → aucune info si ça plante
-
-      // Tu pourrais au minimum faire :
-      // console.error('Erreur polling Fitbit', e)
-      console.error('Erreur polling Fitbit:', e)
+    if (!res.ok) {
+      console.error('Erreur HTTP sample Fitbit:', data)
+      return
     }
 
-  }, 10000) // intervalle de 10 secondes
+    heartRate.value = data.heart_rate ?? null
+    hrv.value = data.hrv ?? null
+    breathingRate.value = data.breathing_rate ?? null
+    chargeMentale.value = data.mental_load_score ?? null
+
+    if (data.mental_load_score !== null && data.mental_load_score !== undefined) {
+      historiqueCharge.value.push({
+        temps: formattedTime.value,
+        valeur: data.mental_load_score
+      })
+      if (historiqueCharge.value.length > 60) historiqueCharge.value.shift()
+    }
+
+    if (data.heart_rate !== null && data.heart_rate !== undefined) {
+      historiqueFC.value.push({
+        temps: formattedTime.value,
+        valeur: data.heart_rate
+      })
+      if (historiqueFC.value.length > 60) historiqueFC.value.shift()
+    }
+
+  } catch (e) {
+    console.error('Erreur polling Fitbit:', e)
+  }
+}
+
+function demarrerPollFitbit(sessionId) {
+  if (fitbitPollInterval) clearInterval(fitbitPollInterval)
+
+  //appel immédiat 
+  recupererSampleFitbit(sessionId)
+
+  fitbitPollInterval = setInterval(() => {
+    recupererSampleFitbit(sessionId)
+  }, 10000)
 }
  
 async function chargerSessionActive() {
