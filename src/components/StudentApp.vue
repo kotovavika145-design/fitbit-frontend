@@ -777,7 +777,19 @@ async function recupererSampleFitbit(sessionId) {
       return
     }
 
-    heartRate.value = data.heart_rate ?? null
+    const lastHrPoint = data.intraday_hr?.length
+    ? data.intraday_hr[data.intraday_hr.length - 1]
+    : null
+
+    heartRate.value = lastHrPoint?.value ?? data.heart_rate ?? null
+    if (lastHrPoint?.value !== null && lastHrPoint?.value !== undefined) {
+      historiqueFC.value.push({
+        temps: lastHrPoint.time ?? formattedTime.value,
+        valeur: lastHrPoint.value
+      })
+      if (historiqueFC.value.length > 60) historiqueFC.value.shift()
+    }
+
     hrv.value = data.hrv ?? null
     breathingRate.value = data.breathing_rate ?? null
     chargeMentale.value = data.mental_load_score ?? null
@@ -789,15 +801,6 @@ async function recupererSampleFitbit(sessionId) {
       })
       if (historiqueCharge.value.length > 60) historiqueCharge.value.shift()
     }
-
-    if (data.heart_rate !== null && data.heart_rate !== undefined) {
-      historiqueFC.value.push({
-        temps: formattedTime.value,
-        valeur: data.heart_rate
-      })
-      if (historiqueFC.value.length > 60) historiqueFC.value.shift()
-    }
-
   } catch (e) {
     console.error('Erreur polling Fitbit:', e)
   }
