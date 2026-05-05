@@ -811,7 +811,7 @@ function demarrerPollFitbit(sessionId) {
 
   fitbitPollInterval = setInterval(() => {
     recupererSampleFitbit(sessionId)
-  }, 10000)
+  }, 60000)
 }
  
 async function chargerSessionActive() {
