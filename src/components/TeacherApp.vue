@@ -91,9 +91,7 @@
             <!-- TODO (synchro backend) : remplacer stats par des données du serveur -->
             <div class="stats-row">
               <div class="stat-card">
-                <div class="stat-label">CM Groupe <span class="badge" :class="stats.cmGroupe < 40 ? 'badge-faib' : stats.cmGroupe < 70 ? 'badge-mod' : 'badge-elev'">
-                ● {{ stats.cmGroupe < 40 ? 'Faible' : stats.cmGroupe < 70 ? 'Modérée' : 'Élevée' }}
-                  </span></div>
+                <div class="stat-label">CM Groupe <span class="badge badge-mod">● Modérée</span></div>
                 <div class="stat-value" style="color:var(--yellow)">{{ stats.cmGroupe }}</div>
                 <div class="stat-sub">Moyenne du groupe /100</div>
               </div>
@@ -168,25 +166,17 @@
               </div>
             </div>
 
-            <div class="alert-bar" v-if="stats.enSurcharge > 0">
-             <span class="alert-icon">⚠️</span>
-            <div class="alert-text">
-            <strong>Alerte surcharge ({{ stats.enSurcharge }} étudiants).</strong>
-             {{ students.filter(s => s.level === 'elev').map(s => s.name).join(', ') }}
-              dépassent le seuil de charge élevée. Envisager une pause.
+            <!-- Alerte surcharge -->
+            <div class="alert-bar">
+              <span class="alert-icon">⚠️</span>
+              <div class="alert-text">
+                <strong>Alerte surcharge ({{ stats.enSurcharge }} étudiants).</strong>
+                Viktoriia K. (84), Sarah O. (91) et un autre étudiant dépassent le seuil de charge élevée.
+                Envisager une pause ou un allègement des activités.
+              </div>
             </div>
-            </div>
-            <div class="alert-bar" v-else>
-            <span class="alert-icon">✅</span>
-            <div class="alert-text">
-            <strong>Aucune surcharge détectée.</strong>
-             Tous les étudiants sont dans des niveaux acceptables.
-             </div>
-             </div>
-             </div>
-             </div>
-
-
+          </div>
+        </div>
 
         <!-- ══════════ PAGE 2 : CRÉER UNE SESSION ═══ -->
         <div v-else-if="currentPage==='create'" key="create">
@@ -281,7 +271,7 @@
                     <span class="recap-key">Durée</span>
                     <span class="recap-val">{{ dureeAffichee }}</span>
                   </div>
-                  <div class="recap-row"><span class="recap-key">Étudiants</span><span class="recap-val">{{ stats.connectes }} / {{ stats.total }}</span></div>
+                  <div class="recap-row"><span class="recap-key">Étudiants</span><span class="recap-val">12 / 14</span></div>
                   <div class="recap-row"><span class="recap-key">Questionnaire</span><span class="recap-val">{{ sessionForm.questionnaire }}</span></div>
                   <div class="recap-row"><span class="recap-key">API</span><span class="api-badge">FITBIT PRÊTE</span></div>
                 </div>
@@ -351,14 +341,10 @@
                     </linearGradient>
                   </defs>
                   <path d="M15,75 A55,55 0 0,1 125,75" fill="none" stroke="rgba(255,255,255,.08)" stroke-width="10" stroke-linecap="round"/>
-                  <path d="M15,75 A55,55 0 0,1 125,75" fill="none" stroke="url(#gaugeGrad)" stroke-width="10" stroke-linecap="round" stroke-dasharray="173" :stroke-dashoffset="173 - (stats.cmGroupe / 100) * 173"/>
+                  <path d="M15,75 A55,55 0 0,1 125,75" fill="none" stroke="url(#gaugeGrad)" stroke-width="10" stroke-linecap="round" stroke-dasharray="173" stroke-dashoffset="70"/>
                 </svg>
                 <div class="gauge-score" style="color:var(--yellow)">{{ stats.cmGroupe }}</div>
-                <div class="gauge-sub">
-                <span class="badge" :class="stats.cmGroupe < 40 ? 'badge-faib' : stats.cmGroupe < 70 ? 'badge-mod' : 'badge-elev'">
-                ● {{ stats.cmGroupe < 40 ? 'CHARGE FAIBLE' : stats.cmGroupe < 70 ? 'CHARGE MODEREE' : 'CHARGE ELEVEE' }}
-                </span>
-               </div>
+                <div class="gauge-sub"><span class="badge badge-mod">● CHARGE MODÉRÉE</span></div>
               </div>
             </div>
 
@@ -429,6 +415,11 @@
 
 <script>
 import { io } from 'socket.io-client'
+
+const API_URL = import.meta.env.VITE_API_URL
+const SOCKET_URL = import.meta.env.VITE_SOCKET_URL
+
+
 export default {
   name: 'App',
 
@@ -465,11 +456,11 @@ export default {
       // Stats du groupe
       // TODO (synchro backend) : données live du serveur
       stats: {
-        cmGroupe: 0,
-        enSurcharge: 0,
-        fcMoyenne: 0,
-        connectes: 0,
-        total: 0,
+        cmGroupe: 64,
+        enSurcharge: 3,
+        fcMoyenne: 81,
+        connectes: 12,
+        total: 14,
       },
 
       // Étudiants pour les barres du dashboard
@@ -477,10 +468,10 @@ export default {
       students: [],
 
       // Répartition niveaux pour la vue groupe
-      niveaux: { faible: 0, modere: 0, eleve: 0 },
+      niveaux: { faible: 4, modere: 5, eleve: 3 },
 
       // Scores NASA-TLX
-      tlx: { debut: 0, fin: 0 },
+      tlx: { debut: 42, fin: 61 },
       historiqueCMGroupe: [],
 
       // Options du select groupe
@@ -575,7 +566,7 @@ export default {
     async chargerHistorique() {
       try {
         
-        const response = await fetch(`http://localhost:5000/api/sessions/created_by/${this.userConnecte.id}`)
+        const response = await fetch(`${API_URL}/sessions/created_by/${this.userConnecte.id}`)
         if (response.ok) {
           const sessions = await response.json()
           if (sessions.length > 0) {
@@ -600,7 +591,7 @@ export default {
     //Met à jour deux listes students et groupDetails
     async chargerGroupeDetails() {
       try {
-        const response = await fetch('http://localhost:5000/api/users?role=student')
+        const response = await fetch(`${API_URL}/users?role=student`)
         if (response.ok) {
           const users = await response.json()
           if (users.length > 0) {
@@ -608,7 +599,7 @@ export default {
             // Pour chaque étudiant, on récupère sa dernière session
             const details = await Promise.all(users.map(async u => {
               try {
-                const sessRes = await fetch(`http://localhost:5000/api/sessions/user/${u.id}`)
+                const sessRes = await fetch(`${API_URL}/sessions/user/${u.id}`)
                 if (sessRes.ok) {
                   const sessions = await sessRes.json()
                   const lastSession = sessions[0] // Session la plus récente
@@ -618,7 +609,6 @@ export default {
                                 : lastSession.mental_load_level === 'high' ? 'elev' : 'mod'
                     return {
                       name: u.email,
-                      user_id: u.id,
                       fc: lastSession.avg_heart_rate ? Math.round(lastSession.avg_heart_rate) : '—',
                       hrv: lastSession.avg_hrv ? Math.round(lastSession.avg_hrv) : '—',
                       tlx: lastSession.nasa_tlx_score ? lastSession.nasa_tlx_score.toFixed(1) : '—',
@@ -634,97 +624,66 @@ export default {
               // Valeurs par défaut si pas de session
               return {
                 name: u.email,
-                user_id: u.id,
                 fc: '—', hrv: '—', tlx: '—',
                 score: 0, level: 'mod', levelLabel: 'Modéré'
               }
             }))
-           
-           this.groupDetails = details
-           this.students = this.groupDetails.map(d => ({
-              name: d.name.split('@')[0],
+
+            this.groupDetails = details
+            this.students = details.map(d => ({
+              name: d.name,
               score: d.score,
               level: d.level,
-              levelLabel: d.level === 'faib' ? 'Faib.' : d.level === 'elev' ? 'Élév.' : 'Mod.'
-          }))
-// Calcul des stats groupe depuis les données réelles
-const avecScore = details.filter(d => d.score > 0)
-const avecFC    = details.filter(d => d.fc !== '—')
+              levelLabel: d.level === 'faib' ? 'Faib.' : d.level === 'elev' ? 'Élev.' : 'Mod.'
+            }))
 
-if (avecScore.length > 0) {
-  this.stats.cmGroupe = Math.round(
-    avecScore.reduce((acc, d) => acc + d.score, 0) / avecScore.length
-  )
-  this.stats.enSurcharge = avecScore.filter(d => d.score > 80).length
-}
+            // Calcul des stats groupe depuis les données réelles
+            const avecScore = details.filter(d => d.score > 0)
+            const avecFC    = details.filter(d => d.fc !== '—')
 
-if (avecScore.length > 0) {
-  this.historiqueCMGroupe.push({
-    temps: this.currentSession.elapsed,
-    valeur: this.stats.cmGroupe
-  })
-  if (this.historiqueCMGroupe.length > 60) this.historiqueCMGroupe.shift()
-}
+            if (avecScore.length > 0) {
+              // Charge mentale moyenne du groupe
+              this.stats.cmGroupe = Math.round(
+                avecScore.reduce((acc, d) => acc + d.score, 0) / avecScore.length
+              )
+              // Nombre d'étudiants en surcharge (score > 80)
+              this.stats.enSurcharge = avecScore.filter(d => d.score > 80).length
+            }
+            // Accumulation pour le graphique temps réel
+            // On garde 60 points max
+            if (avecScore.length > 0) {
+              this.historiqueCMGroupe.push({
+                temps: this.currentSession.elapsed,
+                valeur: this.stats.cmGroupe
+              })
+              if (this.historiqueCMGroupe.length > 60) this.historiqueCMGroupe.shift()
+            }
 
-// Récupérer les données temps réel de la session active
-try {
-  const sessionRes = await fetch('http://localhost:5000/api/sessions/active')
-  if (sessionRes.ok) {
-    const sessionActive = await sessionRes.json()
-    const samplesRes = await fetch(`http://localhost:5000/api/sessions/${sessionActive.id}/samples`)
-    if (samplesRes.ok) {
-      const samples = await samplesRes.json()
-      samples.forEach(sample => {
-        const etudiant = this.groupDetails.find(d => d.user_id === sample.user_id)
-        if (etudiant && sample.heart_rate) {
-          etudiant.fc = Math.round(sample.heart_rate)
-          etudiant.score = sample.mental_load_score
-            ? Math.round(sample.mental_load_score)
-            : etudiant.score
-          etudiant.level = sample.mental_load_level === 'low' ? 'faib'
-                         : sample.mental_load_level === 'high' ? 'elev' : 'mod'
+
+            if (avecFC.length > 0) {
+              // FC moyenne du groupe
+              this.stats.fcMoyenne = Math.round(
+                avecFC.reduce((acc, d) => acc + Number(d.fc), 0) / avecFC.length
+              )
+            }
+
+            // Nombre d'étudiants connectés = ceux qui ont un score
+            this.stats.connectes = avecScore.length
+            this.stats.total     = details.length
+
+            // Répartition des niveaux pour la vue groupe
+            this.niveaux.faible = details.filter(d => d.level === 'faib').length
+            this.niveaux.modere = details.filter(d => d.level === 'mod').length
+            this.niveaux.eleve  = details.filter(d => d.level === 'elev').length
+          }
         }
-      })
-      this.students = this.groupDetails.map(d => ({
-         name: d.name.split('@')[0],
-         score: d.score,
-         level: d.level,
-        levelLabel: d.level === 'faib' ? 'Faib.' : d.level === 'elev' ? 'Élev.' : 'Mod.'
-      }))
-    }
-  }
-} catch (e) {
-  console.error('Erreur samples actifs', e)
-}
-
-if (avecFC.length > 0) {
-  this.stats.fcMoyenne = Math.round(
-    avecFC.reduce((acc, d) => acc + Number(d.fc), 0) / avecFC.length
-  )
-}
-const avecTlx = details.filter(d => d.tlx !== '—')
-if (avecTlx.length > 0) {
-  this.tlx.fin = Math.round(
-    avecTlx.reduce((acc, d) => acc + Number(d.tlx), 0) / avecTlx.length
-  )
-}
-
-this.stats.connectes = avecScore.length
-this.stats.total     = details.length
-
-this.niveaux.faible = details.filter(d => d.level === 'faib').length
-this.niveaux.modere = details.filter(d => d.level === 'mod').length
-this.niveaux.eleve  = details.filter(d => d.level === 'elev').length
-}        // ← ferme le if (users.length > 0)
-        }          // ← ferme le if (response.ok)
       } catch (e) {
         console.error('Erreur chargement groupe', e)
       }
-    },             // ← ferme la fonction chargerGroupeDetails
-
+    },
     async chargerEtudiants() {
       try {
-        const response = await fetch('http://localhost:5000/api/users?role=student')
+        const response = await fetch(`${API_URL}/users?role=student`)
         if (response.ok) {
           const users = await response.json()
           if (users.length > 0) {
@@ -760,7 +719,7 @@ this.niveaux.eleve  = details.filter(d => d.level === 'elev').length
   // Sauvegarde la session dans le backend
   try {
     console.log('userConnecte:', this.userConnecte)
-    const response = await fetch('http://localhost:5000/api/sessions', {
+    const response = await fetch(`${API_URL}/sessions`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -916,7 +875,9 @@ this.niveaux.eleve  = details.filter(d => d.level === 'elev').length
   },
   mounted() {
     //Connexionn au serveur Websocket
-    this.socket = io('http://localhost:5000')
+    this.socket = io(SOCKET_URL, {
+      transports: ['websocket', 'polling']
+    })
 
     //Quand un etudiant soumet son score on met a jour la vue groupe 
     this.socket.on('nouveau_score', (data)=>{
