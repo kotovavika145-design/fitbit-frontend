@@ -699,6 +699,13 @@ export default {
       }
     },
 
+    // Retourne la couleur CSS selon le niveau de charge
+    // Utilisé dans :style="{color: levelColor(...)}"
+    levelColor(level) {
+      const colors = { mod: 'var(--yellow)', elev: 'var(--red)', faib: 'var(--green)' }
+      return colors[level] || 'var(--text)'
+    },
+
     // Lance une nouvelle session :
     // - met à jour currentSession
     // - démarre le chrono avec setInterval
