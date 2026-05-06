@@ -506,6 +506,7 @@ const heartRate = ref(null)
 const hrv = ref(null)
 const breathingRate = ref(null)
 const chargeMentale = ref(null)
+const questionnaireMoment = ref('end')
 // Historique des valeurs pour les graphiques temps réel
 // Chaque entrée = { temps: 'mm:ss', valeur: number }
 const historiqueCharge = ref([])
@@ -540,6 +541,8 @@ socket.on('session_demarree', async (data) => {
   elapsed.value = 0
   startTimer()
   await new Promise(resolve => setTimeout(resolve, 500))
+  questionnaireMoment.value = 'start'
+  showPage('s-questionnaire')
   
   // Récupérer la session active et démarrer le polling Fitbit
   try {
@@ -555,6 +558,7 @@ socket.on('session_demarree', async (data) => {
 //Quand le prof termine la session on redirige vers le questionnaire 
 socket.on('aller_questionnaire', () => {
   if (timerInterval)clearInterval(timerInterval)
+  questionnaireMoment.value = 'end'
   showPage('s-questionnaire')
 })
 
@@ -694,6 +698,7 @@ function togglePause() {
 // MODIFIÉ : arrête le timer et redirige vers le questionnaire
 function terminerSession() {
   if (timerInterval) clearInterval(timerInterval);
+  questionnaireMoment.value = 'end'
   showPage('s-questionnaire');
 }
 // Fonction asynchrone qui vérifie si l'utilisateur est déjà connecté à Fitbit
@@ -970,8 +975,19 @@ async function validerQuestionnaire() {
   // Marque le questionnaire comme validé côté frontend (UI state)
   questionnaireValide.value = true
 
-  try {
+  const nasaPayload = {
+    user_id: userConnecte.value.id,
+    nasa_dimensions: {
+      mental_demand: dimensions.value[0].value, // charge mentale
+      physical_demand: dimensions.value[1].value, // effort physique
+      temporal_demand: dimensions.value[2].value, // pression temporelle
+      performance: dimensions.value[3].value, // perception performance
+      effort: dimensions.value[4].value, // effort global
+      frustration: dimensions.value[5].value // frustration ressentie
+    }
+  }
 
+  try {
     // Récupère la session active depuis le backend
     // (session en cours où l'utilisateur va être ajouté)
     const sessionActiveRes = await fetch(`${API_URL}/sessions/active`)
@@ -987,13 +1003,25 @@ async function validerQuestionnaire() {
       await fetch(`${API_URL}/sessions/${sessionActive.id}/join`, {
 
         method: 'POST',
-
         headers: { 'Content-Type': 'application/json' },
-
         body: JSON.stringify({
           user_id: userConnecte.value.id
         })
       })
+
+      // Questionnaire du début
+      if (questionnaireMoment.value === 'start') {
+        const startRes = await fetch(`${API_URL}/sessions/${sessionActive.id}/nasa/start`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(nasaPayload)
+        })
+        if (startRes.ok) console.log('NASA-TLX début sauvegardé !')
+
+        questionnaireMoment.value = 'end'
+        showPage('s-session')
+        return
+      }
 
       // Étape 2 : clôturer la session avec les résultats NASA-TLX
       // Ici on envoie les réponses du questionnaire pour analyse côté backend
@@ -1003,22 +1031,11 @@ async function validerQuestionnaire() {
 
         headers: { 'Content-Type': 'application/json' },
 
-        body: JSON.stringify({
-          user_id: userConnecte.value.id,
-          // Structure NASA-TLX (charge mentale perçue)
-          nasa_dimensions: {
-            mental_demand: dimensions.value[0].value,     // charge mentale
-            physical_demand: dimensions.value[1].value,   // effort physique
-            temporal_demand: dimensions.value[2].value,   // pression temporelle
-            performance: dimensions.value[3].value,       // perception performance
-            effort: dimensions.value[4].value,            // effort global
-            frustration: dimensions.value[5].value        // frustration ressentie
-          }
-        })
+        body: JSON.stringify(nasaPayload)
       })
 
       // Confirmation côté console si la sauvegarde a réussi
-      if (putRes.ok) console.log('NASA-TLX sauvegardé !')
+      if (putRes.ok) console.log('NASA-TLX fin sauvegardé !')
     }
 
   } catch (e) {
