@@ -366,7 +366,7 @@
             <div class="card-sub">Objectif + Subjectif</div>
           </div>
           <div class="card">
-            <div class="card-header"><span class="card-title">NASA-TLX fin</span></div>
+            <div class="card-header"><span class="card-title">{{ questionnaireMoment==='start' ? 'NASA-TLX DÉBUT' : 'NASA-TLX FIN' }}</span></div>
             <!-- MODIFIÉ : score venant directement du questionnaire rempli -->
             <div class="card-value">{{ averageScore.toFixed(1) }}</div>
             <div class="card-sub">Score questionnaire</div>
@@ -429,7 +429,7 @@
             <div style="display:flex;align-items:flex-end;gap:1.5rem;padding:1rem 0;justify-content:center">
               <div style="display:flex;flex-direction:column;align-items:center;gap:.5rem">
                 <div style="width:50px;background:rgba(168,85,247,.25);border-radius:6px 6px 0 0;height:76px;border:1px solid rgba(168,85,247,.4)"></div>
-                <div style="font-family:'Syne',sans-serif;font-weight:700">—</div>
+                <div style="font-family:'Syne',sans-serif;font-weight:700">{{ nasaDebutScore ?? '✓' }}</div>
                 <div style="font-size:.78rem;color:var(--muted)">Début</div>
               </div>
               <div style="display:flex;flex-direction:column;align-items:center;gap:.5rem">
@@ -507,6 +507,7 @@ const hrv = ref(null)
 const breathingRate = ref(null)
 const chargeMentale = ref(null)
 const questionnaireMoment = ref('end')
+const nasaDebutScore = ref(null)
 // Historique des valeurs pour les graphiques temps réel
 // Chaque entrée = { temps: 'mm:ss', valeur: number }
 const historiqueCharge = ref([])
@@ -1087,10 +1088,11 @@ function calculateOffset(index) {
 // ── Export ───────────────────────────────────────────────────
 // MODIFIÉ : fonctions d'export qui génèrent un vrai fichier HTML téléchargeable
 function exporterResultats() {
-  const titre = `Résultats session — Iza Lydia — ${todayDate}`;
+  const etudiant = userConnecte.value.email || 'Étudiant'
+  const titre = `Résultats session — ${etudiant} — ${todayDate}`  
   const contenu = `
-    <h2>Étudiant : Iza Lydia</h2>
-    <p>Date : ${todayDate} | Cours : Bases de Données | Durée : ${formattedTime.value}</p>
+    <h2>Étudiant : ${etudiant}</h2>
+    <p>Date : ${todayDate} | Cours : ${sessionName.value} | Durée : ${formattedTime.value}</p>
     <h3>Score Global : ${scoreGlobal.value}/100 — ${niveauLabel.value}</h3>
     <h3>Score NASA-TLX : ${averageScore.value.toFixed(1)}/100</h3>
     <h3>Détail par dimension</h3>
@@ -1099,27 +1101,24 @@ function exporterResultats() {
       ${dimensions.value.map(d => `<tr><td>${d.label}</td><td>${d.value}/100</td></tr>`).join('')}
     </table>
     <h3>Données physiologiques</h3>
-    <p>FC moyenne : 79 bpm (Max: 94 · Min: 64)</p>
-    <p>HRV moyenne : 44 ms</p>
-    <p><i>Les données Fitbit seront disponibles une fois l'API connectée au backend.</i></p>
+    <p>FC moyenne : ${heartRate.value ?? '-'} bpm</p>
+    <p>HRV moyenne : ${hrv.value ?? '-'} ms</p>
+    <p>Fréquence respiratoire : ${breathingRate.value ?? '-'} rpm</p>
   `;
   genererFichier(titre, contenu);
 }
  
 function exporterHistorique() {
-  const titre = `Historique sessions — Iza Lydia`;
+  const etudiant = userConnecte.value.email || 'Étudiant'
+  const titre = `Historique sessions — ${etudiant}`;
   const ligneActuelle = questionnaireValide.value
-    ? `<tr><td>${todayDate}</td><td>Bases de Données</td><td>${formattedTime.value}</td><td>${averageScore.value.toFixed(1)}</td><td>${scoreGlobal.value}</td><td>${niveauLabel.value}</td></tr>`
+    ? `<tr><td>${todayDate}</td><td>${sessionName.value}</td><td>${formattedTime.value}</td><td>${averageScore.value.toFixed(1)}</td><td>${scoreGlobal.value}</td><td>${niveauLabel.value}</td></tr>`
     : '';
   const contenu = `
-    <h2>Historique de toutes les sessions — Iza Lydia</h2>
+    <h2>Historique de toutes les sessions — ${etudiant}</h2>
     <table border="1" cellpadding="6" cellspacing="0" style="border-collapse:collapse;width:100%">
       <tr style="background:#f0f0f0"><th>Date</th><th>Cours</th><th>Durée</th><th>NASA-TLX</th><th>Score global</th><th>Niveau</th></tr>
-      ${ligneActuelle}
-      <tr><td>19/12/2026</td><td>Algorithmique</td><td>1h30</td><td>71.3</td><td>78</td><td>Élevé</td></tr>
-      <tr><td>15/12/2026</td><td>Réseaux</td><td>45min</td><td>32.0</td><td>31</td><td>Faible</td></tr>
-      <tr><td>12/12/2026</td><td>Programmation Web</td><td>1h00</td><td>49.5</td><td>54</td><td>Modéré</td></tr>
-      <tr><td>08/12/2026</td><td>Bases de Données</td><td>1h00</td><td>60.2</td><td>65</td><td>Modéré</td></tr>
+      ${ligneActuelle || '<tr><td colspan="6">Aucune session exportable pour le moment</td></tr>'}
     </table>
   `;
   genererFichier(titre, contenu);
