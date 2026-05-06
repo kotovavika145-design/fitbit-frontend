@@ -505,7 +505,7 @@ const heartRate = ref(null)
 const hrv = ref(null)
 const breathingRate = ref(null)
 const chargeMentale = ref(null)
-const questionnaireMoment = ref('end')
+const questionnaireMoment = ref('start')
 const nasaDebutScore = ref(null)
 // Historique des valeurs pour les graphiques temps réel
 // Chaque entrée = { temps: 'mm:ss', valeur: number }
