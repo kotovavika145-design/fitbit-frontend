@@ -420,7 +420,7 @@
               <circle cx="500" cy="50" r="4" fill="var(--surface)" stroke="#ffb547" stroke-width="2"/>
               <text x="2" y="140" font-size="10" fill="#6b7f9e" font-family="DM Sans">Début</text>
               <!-- MODIFIÉ : score dynamique au lieu de valeur fixe -->
-              <text x="455" y="45" font-size="10" fill="#ffb547" font-family="DM Sans">{{ averageScore.toFixed(0) }}</text>
+              <text x="455" y="45" font-size="10" fill="#ffb547" font-family="DM Sans">{{ nasaDebutScore !== null ? nasaDebutScore.toFixed(0) : '—' }}</text>
             </svg>
           </div>
           <div class="card">
@@ -428,7 +428,7 @@
             <div style="display:flex;align-items:flex-end;gap:1.5rem;padding:1rem 0;justify-content:center">
               <div style="display:flex;flex-direction:column;align-items:center;gap:.5rem">
                 <div style="width:50px;background:rgba(168,85,247,.25);border-radius:6px 6px 0 0;height:76px;border:1px solid rgba(168,85,247,.4)"></div>
-                <div style="font-family:'Syne',sans-serif;font-weight:700">{{ nasaDebutScore ?? '✓' }}</div>
+                <div style="font-family:'Syne',sans-serif;font-weight:700">{{ nasaDebutScore !== null ? nasaDebutScore.toFixed(0) : '-' }}</div>
                 <div style="font-size:.78rem;color:var(--muted)">Début</div>
               </div>
               <div style="display:flex;flex-direction:column;align-items:center;gap:.5rem">
@@ -1013,6 +1013,7 @@ async function validerQuestionnaire() {
 
       // Questionnaire du début
       if (questionnaireMoment.value === 'start') {
+        nasaDebutScore.value = averageScore.value
         const startRes = await fetch(`${API_URL}/sessions/${sessionActive.id}/nasa/start`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
