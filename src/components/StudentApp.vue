@@ -232,8 +232,7 @@
             <h1>Questionnaire NASA-TLX Raw</h1>
             <p>Évaluez votre charge mentale sur chaque dimension (0 = très faible, 100 = très élevé)</p>
           </div>
-          <div><span class="badge live">Fin de session</span></div>
-        </div>
+          <div><span class="badge live">{{ questionnaireMoment === 'start' ? 'Début de session' : 'Fin de session' }}</span></div></div>
  
         <!--
           Utilisation de CSS Grid pour avoir deux colonnes :
@@ -292,7 +291,7 @@
                 MODIFIÉ : appelle validerQuestionnaire() au lieu de showPage directement
                 pour sauvegarder le score avant de changer de page
               -->
-              <button class="btn-sm" @click="validerQuestionnaire">Valider &amp; voir les résultats →</button>
+              <button class="btn-sm" @click="validerQuestionnaire">{{ questionnaireMoment === 'start' ? 'Valider & commencer la session →' : 'Valider & voir les résultats →' }}</button>
             </div>
           </div>
  
@@ -366,7 +365,7 @@
             <div class="card-sub">Objectif + Subjectif</div>
           </div>
           <div class="card">
-            <div class="card-header"><span class="card-title">{{ questionnaireMoment==='start' ? 'NASA-TLX DÉBUT' : 'NASA-TLX FIN' }}</span></div>
+            <div class="card-header"><span class="card-title">{{ questionnaireMoment==='start' ? 'NASA-TLX DÉBUT' : 'NASA-TLX FINAL' }}</span></div>
             <!-- MODIFIÉ : score venant directement du questionnaire rempli -->
             <div class="card-value">{{ averageScore.toFixed(1) }}</div>
             <div class="card-sub">Score questionnaire</div>
@@ -541,9 +540,10 @@ socket.on('session_demarree', async (data) => {
   dureeTotaleSecondes.value = data.dureeSecondes || 3600
   elapsed.value = 0
   startTimer()
-  await new Promise(resolve => setTimeout(resolve, 500))
   questionnaireMoment.value = 'start'
   showPage('s-questionnaire')
+  await new Promise(resolve => setTimeout(resolve, 500))
+  
   
   // Récupérer la session active et démarrer le polling Fitbit
   try {
