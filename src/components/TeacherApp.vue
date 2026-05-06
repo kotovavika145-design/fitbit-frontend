@@ -719,10 +719,12 @@ export default {
           const users = await response.json()
           if (users.length > 0) {
             this.sessionStudents = users.map(u => ({
+              id: u.id,
               name: u.email,
               initials: u.email.substring(0, 2).toUpperCase(),
               color: 'linear-gradient(135deg,#5a3fbf,#8c55f5)',
-              connected: u.fitbit_connected
+              connected: false,
+              selected: true
             }))
           }
         }
@@ -759,7 +761,10 @@ export default {
             group_name: this.sessionForm.group,
             duration_minutes: this.dureeEnMinutes,
             device: this.sessionForm.device,
-            questionnaire_type: this.sessionForm.questionnaire
+            questionnaire_type: this.sessionForm.questionnaire,
+            participant_ids: this.sessionStudents
+              .filter(s => s.selected)
+              .map(s => s.id),
           })
         })
         if (!response.ok) {
