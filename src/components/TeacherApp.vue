@@ -162,7 +162,7 @@
                       <!-- Largeur de la barre = score en % -->
                       <div class="bar-fill" :class="'bar-' + s.level" :style="{ width: s.score + '%' }"></div>
                     </div>
-                    <span class="student-score" :class="'score-' + s.level">{{ s.score }}</span>
+                    <span class="student-score" :class="'score-' + s.level">{{ s.score > 0 ? s.score : '-'}}</span>
                     <div class="level-dot" :style="{ background: levelColor(s.level) }"></div>
                     <span
                       style="font-size:10px;color:var(--muted);width:30px;text-align:right;text-transform:uppercase;">{{
@@ -173,11 +173,11 @@
             </div>
 
             <!-- Alerte surcharge -->
-            <div class="alert-bar">
+            <div v-if="stats.enSurcharge > 0" class="alert-bar">
               <span class="alert-icon">⚠️</span>
               <div class="alert-text">
-                <strong>Alerte surcharge ({{ stats.enSurcharge }} étudiants).</strong>
-                Viktoriia K. (84), Sarah O. (91) et un autre étudiant dépassent le seuil de charge élevée.
+                <strong>Alerte surcharge ({{ stats.enSurcharge }} étudiant(s)).</strong>
+                Certains étudiants dépassent le seuil de charge élevée.
                 Envisager une pause ou un allègement des activités.
               </div>
             </div>
@@ -280,7 +280,7 @@
                     <span class="recap-key">Durée</span>
                     <span class="recap-val">{{ dureeAffichee }}</span>
                   </div>
-                  <div class="recap-row"><span class="recap-key">Étudiants</span><span class="recap-val">12 / 14</span>
+                  <div class="recap-row"><span class="recap-key">Étudiants</span><span class="recap-val">{{ sessionStudents.filter(s => s.selected).length }} / {{ sessionStudents.length }}</span>
                   </div>
                   <div class="recap-row"><span class="recap-key">Questionnaire</span><span class="recap-val">{{
                       sessionForm.questionnaire }}</span></div>
@@ -476,9 +476,10 @@ export default {
       // Infos de la session en cours
       // TODO (synchro backend) : viendra du serveur
       currentSession: {
-        name: 'Cours BDD L2',
-        date: '22/12/2026',
-        elapsed: '37:24',
+        id: null,
+        name: 'Aucune session en cours',
+        date: '',
+        elapsed: '00:00',
       },
 
 
@@ -487,11 +488,11 @@ export default {
       // Stats du groupe
       // TODO (synchro backend) : données live du serveur
       stats: {
-        cmGroupe: 64,
-        enSurcharge: 3,
-        fcMoyenne: 81,
-        connectes: 12,
-        total: 14,
+        cmGroupe: 0,
+        enSurcharge: 0,
+        fcMoyenne: 0,
+        connectes: 0,
+        total: 0,
       },
 
       // Étudiants pour les barres du dashboard
@@ -499,10 +500,10 @@ export default {
       students: [],
 
       // Répartition niveaux pour la vue groupe
-      niveaux: { faible: 4, modere: 5, eleve: 3 },
+      niveaux: { faible: 0, modere: 0, eleve: 0},
 
       // Scores NASA-TLX
-      tlx: { debut: 42, fin: 61 },
+      tlx: { debut: 0, fin: 0 },
       historiqueCMGroupe: [],
 
       // Options du select groupe
@@ -515,12 +516,12 @@ export default {
 
       // Données du formulaire "Créer une session" liées aux inputs via v-model
       sessionForm: {
-        name: 'POO — TD3',
+        name: '',
         durationType: 'preset',   // 'preset' ou 'custom'
         duration: '1 heure',
         customHours: 1,
         customMinutes: 0,
-        group: 'L2 Informatique — Groupe 2',
+        group: '',
         device: 'Fitbit Inspire 3 (API connectée)',
         questionnaire: 'NASA-TLX Raw (début + fin)',
       },
