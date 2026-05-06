@@ -679,6 +679,26 @@ export default {
       }
     },
 
+    async chargerEtudiants() {
+      try {
+        const response = await fetch(`${API_URL}/users?role=student`)
+
+        if (response.ok) {
+          const users = await response.json()
+          this.sessionStudents = users.map(u => ({
+            id: u.id,
+            name: u.email,
+            initials: u.email.substring(0, 2).toUpperCase(),
+            color: 'linear-gradient(135deg,#5a3fbf,#8c55f5)',
+            connected: false,
+            selected: true,
+          }))
+        }
+      } catch (e) {
+        console.error('Erreur chargement étudiants', e)
+      }
+    },
+
     // Lance une nouvelle session :
     // - met à jour currentSession
     // - démarre le chrono avec setInterval
