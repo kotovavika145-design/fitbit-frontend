@@ -630,8 +630,9 @@ export default {
         this.stats = data.stats || this.stats
         const studentsData = data.students || []
         const details = studentsData.map(s => {
-          const level =
-            s.mental_load_level === 'low'
+          const level = !hasScore
+            ? 'wait'
+            : s.mental_load_level === 'low'
               ? 'faib'
               : s.mental_load_level === 'high'
                 ? 'elev'
@@ -642,14 +643,16 @@ export default {
             fc: s.avg_heart_rate ? Math.round(s.avg_heart_rate) : '-',
             hrv: s.avg_hrv ? Math.round(s.avg_hrv) : '-',
             tlx: s.nasa_score ? Math.round(s.nasa_score) : '-',
-            score: s.mental_load_score ? Math.round(s.mental_load_score) : 0,
+            score: hasScore ? Math.round(s.mental_load_score) : null,
             level,
             levelLabel:
-              level === 'faib'
-                ? 'Faible'
-                : level === 'elev'
-                  ? 'Élevé'
-                  : 'Modéré',
+              level === 'wait'
+                ? 'En attente'
+                : level === 'faib'
+                  ? 'Faible'
+                  : level === 'elev'
+                    ? 'Élevé'
+                    : 'Modéré',
             fitbit_connected: s.fitbit_connected,
           }
         })
