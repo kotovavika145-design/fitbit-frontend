@@ -541,6 +541,7 @@ socket.on('session_demarree', async (data) => {
   elapsed.value = 0
   startTimer()
   questionnaireMoment.value = 'start'
+  console.log('QUESTIONNAIRE MOMENT =', questionnaireMoment.value)
   showPage('s-questionnaire')
   await new Promise(resolve => setTimeout(resolve, 500))
   
