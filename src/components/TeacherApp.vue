@@ -719,6 +719,7 @@ export default {
           elapsed: '00:00'
         }
 
+        localStorage.setItem('lunara_current_session', JSON.stringify(this.currentSession))
         console.log('Session créée avec id:', session.id)
       } catch (e) {
         console.error('Erreur création session', e)
@@ -859,6 +860,11 @@ export default {
     },
   },
   mounted() {
+    const savedSession = JSON.parse(localStorage.getItem('lunara_current_session') || 'null')
+    if (savedSession) {
+      this.currentSession = savedSession
+    }
+
     //Connexionn au serveur Websocket
     this.socket = io(SOCKET_URL, {
       transports: ['websocket', 'polling']
@@ -875,7 +881,7 @@ export default {
       this.sessionTerminee = true
       if (this._timer) {
         clearInterval(this._timer)
-        this._timer - null
+        this._timer = null
       }
     })
     this.socket.on('nouveau_sample', (data) => {
