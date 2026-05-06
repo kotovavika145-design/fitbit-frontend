@@ -630,6 +630,9 @@ export default {
         this.stats = data.stats || this.stats
         const studentsData = data.students || []
         const details = studentsData.map(s => {
+          const hasScore =
+            s.mental_load_score !== null &&
+            s.mental_load_score !== undefined
           const level = !hasScore
             ? 'wait'
             : s.mental_load_level === 'low'
