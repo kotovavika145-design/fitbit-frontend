@@ -620,127 +620,62 @@ export default {
     //Charge les details des etudinatspour la vue groupe 
     //Appelle le bcakend pour recuperer tous les utilisateurs 
     //Met à jour deux listes students et groupDetails
+    
     async chargerGroupeDetails() {
       if (!this.currentSession.id) return
-      try {
-        const response = await fetch(`${API_URL}/sessions/${this.currentSession.id}`)
-        if (response.ok) {
-          const sessionData = await response.json()
-          const participants = sessionData.participants || []
-          if (users.length > 0) {
+      try {const response = await fetch(`${API_URL}/teacher/sessions/${this.currentSession.id}/results`)
+        if (!response.ok) return
+        const data = await response.json()
+        this.stats = data.stats || this.stats
+        const studentsData = data.students || []
+        const details = studentsData.map(s => {
+          const level =
+            s.mental_load_level === 'low'
+              ? 'faib'
+              : s.mental_load_level === 'high'
+                ? 'elev'
+                : 'mod'
 
-            // Pour chaque étudiant, on récupère sa dernière session
-            const details = await Promise.all(participants.map(async u => {
-              const userResponse = await fetch(`${API_URL}/users/${p.user_id}`)
-              const u = await userResponse.json()
-              try {
-                const sessRes = await fetch(`${API_URL}/sessions/user/${u.id}`)
-                if (sessRes.ok) {
-                  const sessions = await sessRes.json()
-                  const lastSession = sessions[0] // Session la plus récente
+          return {id: s.user_id,
+            name: s.email,
+            fc: s.avg_heart_rate ? Math.round(s.avg_heart_rate) : '-',
+            hrv: s.avg_hrv ? Math.round(s.avg_hrv) : '-',
+            tlx: s.nasa_score ? Math.round(s.nasa_score) : '-',
+            score: s.mental_load_score ? Math.round(s.mental_load_score) : 0,
+            level,
+            levelLabel:
+              level === 'faib'
+                ? 'Faible'
+                : level === 'elev'
+                  ? 'Élevé'
+                  : 'Modéré',
+            fitbit_connected: s.fitbit_connected,
+          }
+        })
 
-                  if (lastSession) {
-                    const level = lastSession.mental_load_level === 'low' ? 'faib'
-                      : lastSession.mental_load_level === 'high' ? 'elev' : 'mod'
-                    return {
-                      name: u.email,
-                      fc: lastSession.avg_heart_rate ? Math.round(lastSession.avg_heart_rate) : '—',
-                      hrv: lastSession.avg_hrv ? Math.round(lastSession.avg_hrv) : '—',
-                      tlx: lastSession.nasa_tlx_score ? lastSession.nasa_tlx_score.toFixed(1) : '—',
-                      score: lastSession.mental_load_score ? Math.round(lastSession.mental_load_score) : 0,
-                      level: level,
-                      levelLabel: lastSession.mental_load_level === 'low' ? 'Faible'
-                        : lastSession.mental_load_level === 'high' ? 'Élevé' : 'Modéré'
-                    }
-                  }
-                }
-              } catch (e) { }
+        this.groupDetails = details
+        this.students = details.map(d => ({name: d.name, score: d.score, level: d.level,
+          levelLabel:
+            d.level === 'faib'
+              ? 'Faib.'
+              : d.level === 'elev'
+                ? 'Élev.'
+                : 'Mod.',
+        }))
 
-              // Valeurs par défaut si pas de session
-              return {
-                name: u.email,
-                fc: '—', hrv: '—', tlx: '—',
-                score: 0, level: 'mod', levelLabel: 'Modéré'
-              }
-            }))
+        this.niveaux.faible = details.filter(d => d.level === 'faib').length
+        this.niveaux.modere = details.filter(d => d.level === 'mod').length
+        this.niveaux.eleve = details.filter(d => d.level === 'elev').length
 
-            this.groupDetails = details
-            this.students = details.map(d => ({
-              name: d.name,
-              score: d.score,
-              level: d.level,
-              levelLabel: d.level === 'faib' ? 'Faib.' : d.level === 'elev' ? 'Élev.' : 'Mod.'
-            }))
-
-            // Calcul des stats groupe depuis les données réelles
-            const avecScore = details.filter(d => d.score > 0)
-            const avecFC = details.filter(d => d.fc !== '—')
-
-            if (avecScore.length > 0) {
-              // Charge mentale moyenne du groupe
-              this.stats.cmGroupe = Math.round(
-                avecScore.reduce((acc, d) => acc + d.score, 0) / avecScore.length
-              )
-              // Nombre d'étudiants en surcharge (score > 80)
-              this.stats.enSurcharge = avecScore.filter(d => d.score > 80).length
-            }
-            // Accumulation pour le graphique temps réel
-            // On garde 60 points max
-            if (avecScore.length > 0) {
-              this.historiqueCMGroupe.push({
-                temps: this.currentSession.elapsed,
-                valeur: this.stats.cmGroupe
-              })
-              if (this.historiqueCMGroupe.length > 60) this.historiqueCMGroupe.shift()
-            }
-
-
-            if (avecFC.length > 0) {
-              // FC moyenne du groupe
-              this.stats.fcMoyenne = Math.round(
-                avecFC.reduce((acc, d) => acc + Number(d.fc), 0) / avecFC.length
-              )
-            }
-
-            // Nombre d'étudiants connectés = ceux qui ont un score
-            this.stats.connectes = avecScore.length
-            this.stats.total = details.length
-
-            // Répartition des niveaux pour la vue groupe
-            this.niveaux.faible = details.filter(d => d.level === 'faib').length
-            this.niveaux.modere = details.filter(d => d.level === 'mod').length
-            this.niveaux.eleve = details.filter(d => d.level === 'elev').length
+        if (this.stats.cmGroupe > 0) {
+          this.historiqueCMGroupe.push({temps: this.currentSession.elapsed, valeur: this.stats.cmGroupe,})
+          if (this.historiqueCMGroupe.length > 60) {
+            this.historiqueCMGroupe.shift()
           }
         }
       } catch (e) {
-        console.error('Erreur chargement groupe', e)
+        console.error('Erreur chargement résultats session prof', e)
       }
-    },
-    async chargerEtudiants() {
-      try {
-        const response = await fetch(`${API_URL}/users?role=student`)
-        if (response.ok) {
-          const users = await response.json()
-          if (users.length > 0) {
-            this.sessionStudents = users.map(u => ({
-              id: u.id,
-              name: u.email,
-              initials: u.email.substring(0, 2).toUpperCase(),
-              color: 'linear-gradient(135deg,#5a3fbf,#8c55f5)',
-              connected: false,
-              selected: true
-            }))
-          }
-        }
-      } catch (e) {
-        console.error('Erreur chargement étudiants', e)
-      }
-    },
-    // Retourne la couleur CSS selon le niveau de charge
-    // Utilisé dans :style="{color: levelColor(...)}"
-    levelColor(level) {
-      const colors = { mod: 'var(--yellow)', elev: 'var(--red)', faib: 'var(--green)' }
-      return colors[level] || 'var(--text)'
     },
 
     // Lance une nouvelle session :
