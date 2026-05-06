@@ -621,14 +621,18 @@ export default {
     //Appelle le bcakend pour recuperer tous les utilisateurs 
     //Met à jour deux listes students et groupDetails
     async chargerGroupeDetails() {
+      if (!this.currentSession.id) return
       try {
-        const response = await fetch(`${API_URL}/users?role=student`)
+        const response = await fetch(`${API_URL}/sessions/${this.currentSession.id}`)
         if (response.ok) {
-          const users = await response.json()
+          const sessionData = await response.json()
+          const participants = sessionData.participants || []
           if (users.length > 0) {
 
             // Pour chaque étudiant, on récupère sa dernière session
-            const details = await Promise.all(users.map(async u => {
+            const details = await Promise.all(participants.map(async u => {
+              const userResponse = await fetch(`${API_URL}/users/${p.user_id}`)
+              const u = await userResponse.json()
               try {
                 const sessRes = await fetch(`${API_URL}/sessions/user/${u.id}`)
                 if (sessRes.ok) {
