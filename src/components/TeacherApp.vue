@@ -603,7 +603,7 @@ export default {
           const sessions = await response.json()
           if (sessions.length > 0) {
             this.history = sessions.map(s => ({
-              date: new Date(s.start_time).toLocaleDateString('fr-FR'),
+              date: s.start_time ? new Date(s.start_time).toLocaleDateString('fr-FR') : 'Non démarrée',
               course: s.name || 'Session sans titre',
               group: s.group_name || 'L2U2',
               students: 0,
@@ -663,11 +663,13 @@ export default {
         this.groupDetails = details
         this.students = details.map(d => ({name: d.name, score: d.score, level: d.level,
           levelLabel:
-            d.level === 'faib'
-              ? 'Faib.'
-              : d.level === 'elev'
-                ? 'Élev.'
-                : 'Mod.',
+            d.level === 'wait'
+              ? 'Att.'
+              : d.level === 'faib'
+                ? 'Faib.'
+                : d.level === 'elev'
+                  ? 'Élev.'
+                  : 'Mod.',
         }))
 
         this.niveaux.faible = details.filter(d => d.level === 'faib').length
@@ -712,6 +714,41 @@ export default {
       return colors[level] || 'var(--text)'
     },
 
+    demarrerChronoSession() {
+      // Sécurité : si un ancien timer existe déjà, on le supprime pour éviter les doublons
+      if (this._timer) clearInterval(this._timer)
+
+      // Crée un timer qui se répète toutes les secondes
+      this._timer = setInterval(() => {
+
+        // Calcule le nombre de secondes écoulées depuis le lancement réel de la session
+        const seconds = Math.floor(
+          (Date.now() - this.currentSession.startedAt) / 1000
+        )
+
+        // Convertit les secondes en format mm:ss
+        const m = String(Math.floor(seconds / 60)).padStart(2, '0')
+        const s = String(seconds % 60).padStart(2, '0')
+
+        // Met à jour le temps affiché dans l'interface
+        this.currentSession.elapsed = `${m}:${s}`
+
+        // Vérifie si la durée maximale est atteinte
+        if (seconds >= this.currentSession.durationSeconds) {
+
+          // Arrête le timer
+          clearInterval(this._timer)
+          this._timer = null
+          this.sessionTerminee = true
+
+          // Envoie un événement websocket pour prévenir les étudiants
+          this.socket.emit('session_terminee', {
+            nom: this.currentSession.name,
+          })
+        }
+      }, 1000) // mise à jour toutes les secondes
+    },
+
     // Lance une nouvelle session :
     // - met à jour currentSession
     // - démarre le chrono avec setInterval
@@ -745,57 +782,23 @@ export default {
           return
         }
         const session = await response.json()
+        const startedAt = Date.now()
         this.currentSession = {
           id: session.id,
           name: session.name,
           date: new Date().toLocaleDateString('fr-FR'),
-          elapsed: '00:00'
+          elapsed: '00:00',
+          startedAt,
+          durationSeconds: this.dureeEnMinutes*60,
         }
 
         localStorage.setItem('lunara_current_session', JSON.stringify(this.currentSession))
         console.log('Session créée avec id:', session.id)
+        this.demarrerChronoSession()
       } catch (e) {
         console.error('Erreur création session', e)
         return
       }
-
-      // Calcule la durée totale en secondes
-      let dureeMax = 0
-      if (this.sessionForm.durationType === 'custom') {
-        dureeMax = (this.sessionForm.customHours || 0) * 3600
-          + (this.sessionForm.customMinutes || 0) * 60
-      } else {
-        const map = {
-          '30 minutes': 1800,
-          '1 heure': 3600,
-          '1h30': 5400,
-          '2 heures': 7200,
-        }
-        dureeMax = map[this.sessionForm.duration] || 3600
-      }
-
-      if (dureeMax === 0) dureeMax = 60
-      let seconds = 0
-
-      if (this._timer) clearInterval(this._timer)
-
-      this._timer = setInterval(() => {
-        seconds++
-        const m = String(Math.floor(seconds / 60)).padStart(2, '0')
-        const s = String(seconds % 60).padStart(2, '0')
-        this.currentSession.elapsed = `${m}:${s}`
-
-        if (seconds >= dureeMax) {
-          clearInterval(this._timer)
-          this._timer = null
-          this.sessionTerminee = true
-
-          //EMet ;'evenement Websocket pourrediriger les etudiants vers le questionnaire'
-          this.socket.emit('session_terminee', {
-            nom: this.currentSession.name
-          })
-        }
-      }, 1000)
 
       this.sessionCreated = true
       //Emet l'evenement WebSocket pour informer les etudiants 
@@ -803,7 +806,8 @@ export default {
         session_id: this.currentSession.id,
         duree: this.dureeAffichee,
         dureeSecondes: this.dureeEnMinutes * 60,
-        nom: this.currentSession.name
+        nom: this.currentSession.name,
+        startedAt: this.currentSession.startedAt
       })
       this.currentPage = 'dashboard'
       setTimeout(() => { this.sessionCreated = false }, 5000)
@@ -812,48 +816,93 @@ export default {
     // Génère et télécharge un fichier HTML avec les données
     // type : 'group' | 'history' | 'rapport'
     exportPDF(type, data) {
-      const date = new Date().toLocaleDateString('fr-FR')
+      const dateExport = new Date().toLocaleDateString('fr-FR')
+      const safe = value =>
+        value === null || value === undefined || value === '' ? '—' : value
+
+      const niveauGroupe =
+        this.stats.cmGroupe < 40
+          ? 'Faible'
+          : this.stats.cmGroupe <= 70
+            ? 'Modéré'
+            : 'Élevé'
+
+      const sessionDate =
+        this.currentSession.date && this.currentSession.date !== '01/01/1970'
+          ? this.currentSession.date
+          : 'Non démarrée'
+
       let titre = ''
       let contenu = ''
 
       if (type === 'group') {
         titre = `Rapport Vue Groupe — ${this.currentSession.name}`
         contenu = `
-          <h2>Session : ${this.currentSession.name}</h2>
-          <p>Date : ${this.currentSession.date} | Durée : ${this.dureeAffichee} | Temps écoulé : ${this.currentSession.elapsed}</p>
-          <h3>Score Global Groupe : ${this.stats.cmGroupe}/100 — Charge Modérée</h3>
+          <h2>Session : ${safe(this.currentSession.name)}</h2>
+          <p>Date : ${sessionDate} | Durée : ${this.dureeAffichee} | Temps écoulé : ${this.currentSession.elapsed}</p>
+          <h3>Score Global Groupe : ${safe(this.stats.cmGroupe)}/100 — Charge ${niveauGroupe}</h3>
           <h3>Répartition</h3>
-          <p>Faible : ${this.niveaux.faible} étudiants &nbsp;|&nbsp; Modéré : ${this.niveaux.modere} &nbsp;|&nbsp; Élevé : ${this.niveaux.eleve}</p>
+          <p>Faible : ${this.niveaux.faible} étudiant(s) &nbsp;|&nbsp; Modéré : ${this.niveaux.modere} &nbsp;|&nbsp; Élevé : ${this.niveaux.eleve}</p>
           <h3>NASA-TLX</h3>
-          <p>Début : ${this.tlx.debut}/100 → Fin : ${this.tlx.fin}/100 (+${this.tlx.fin - this.tlx.debut})</p>
+          <p>Début : ${safe(this.tlx.debut)} / 100 → Fin : ${safe(this.tlx.fin)}/100 (${this.tlx.fin - this.tlx.debut >= 0 ? '+' : ''}${this.tlx.fin - this.tlx.debut})</p>
           <h3>Détail par étudiant</h3>
-          <table border="1" cellpadding="6" cellspacing="0" style="border-collapse:collapse;width:100%">
-            <tr style="background:#f0f0f0"><th>Étudiant</th><th>FC Moy.</th><th>HRV</th><th>NASA-TLX</th><th>Score</th><th>Niveau</th></tr>
-            ${this.groupDetails.map(s =>
-          `<tr><td>${s.name}</td><td>${s.fc} bpm</td><td>${s.hrv}ms</td><td>${s.tlx}</td><td><b>${s.score}</b></td><td>${s.levelLabel}</td></tr>`
-        ).join('')}
-          </table>`
+          <table>
+            <tr>
+              <th>Étudiant</th>
+              <th>FC Moy.</th>
+              <th>HRV</th>
+              <th>NASA-TLX</th>
+              <th>Score</th>
+              <th>Niveau</th>
+            </tr>
+            ${this.groupDetails.map(s => `
+              <tr>
+                <td>${safe(s.name)}</td>
+                <td>${safe(s.fc)} bpm</td>
+                <td>${safe(s.hrv)} ms</td>
+                <td>${safe(s.tlx)}</td>
+                <td><b>${safe(s.score)}</b></td>
+                <td>${safe(s.levelLabel)}</td>
+              </tr>
+            `).join('')}
+          </table>
+        `
 
       } else if (type === 'history') {
         titre = `Historique des sessions — LUnara`
         contenu = `
           <h2>Historique de toutes les sessions</h2>
-          <p>Exporté le ${date} par C. Gnaho</p>
-          <table border="1" cellpadding="6" cellspacing="0" style="border-collapse:collapse;width:100%">
-            <tr style="background:#f0f0f0"><th>Date</th><th>Cours</th><th>Groupe</th><th>Étudiants</th><th>CM Groupe</th><th>Niveau</th></tr>
-            ${this.history.map(h =>
-          `<tr><td>${h.date}</td><td>${h.course}</td><td>${h.group}</td><td>${h.students}</td><td><b>${h.cm}</b></td><td>${h.levelLabel}</td></tr>`
-        ).join('')}
-          </table>`
+          <p>Exporté le ${dateExport} par ${safe(this.userConnecte.email)}</p>
+          <table>
+            <tr>
+              <th>Date</th>
+              <th>Cours</th>
+              <th>Groupe</th>
+              <th>Étudiants</th>
+              <th>CM Groupe</th>
+              <th>Niveau</th>
+            </tr>
+            ${this.history.map(h => `
+              <tr>
+                <td>${safe(h.date)}</td>
+                <td>${safe(h.course)}</td>
+                <td>${safe(h.group)}</td>
+                <td>${safe(h.students)}</td>
+                <td><b>${safe(h.cm)}</b></td>
+                <td>${safe(h.levelLabel)}</td>
+              </tr>
+            `).join('')}
+          </table>
+        `
 
       } else if (type === 'rapport' && data) {
         titre = `Rapport — ${data.course} (${data.date})`
         contenu = `
-          <h2>${data.course}</h2>
-          <p>Date : ${data.date} | Groupe : ${data.group} | Étudiants : ${data.students}</p>
-          <h3>Charge Mentale Groupe : ${data.cm}/100 — ${data.levelLabel}</h3>
+          <h2>${safe(data.course)}</h2>
+          <p>Date : ${safe(data.date)} | Groupe : ${safe(data.group)} | Étudiants : ${safe(data.students)}</p>
+          <h3>Charge Mentale Groupe : ${safe(data.cm)}/100 — ${safe(data.levelLabel)}</h3>
           <p>Ce rapport a été généré automatiquement par LUnara.</p>
-          <p><i>Les données détaillées seront disponibles une fois connectées au backend.</i></p>`
+        `
       }
 
       // Crée un fichier HTML et le télécharge automatiquement
@@ -876,7 +925,7 @@ export default {
 <body>
   <h1>🌙 LUnara — ${titre}</h1>
   ${contenu}
-  <div class="footer">Généré le ${date} par LUnara · Université Paris Cité · Groupe L2U2</div>
+  <div class="footer">Généré le ${dateExport} par LUnara · Université Paris Cité · Groupe L2U2</div>
 </body>
 </html>`
 
@@ -902,6 +951,10 @@ export default {
     this.socket = io(SOCKET_URL, {
       transports: ['websocket', 'polling']
     })
+
+    if (this.currentSession.startedAt && this.currentSession.durationSeconds) {
+      this.demarrerChronoSession()
+    }
 
     //Quand un etudiant soumet son score on met a jour la vue groupe 
     this.socket.on('nouveau_score', (data) => {
@@ -930,6 +983,7 @@ export default {
       this.chargerHistorique()
     }, 5000)
   },
+
   // Cycle de vie : nettoyage du timer quand le composant est détruit
   // Évite les fuites mémoire
   beforeUnmount() {

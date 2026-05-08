@@ -538,8 +538,12 @@ socket.on('session_demarree', async (data) => {
   sessionName.value = data.nom || 'Session en cours'
   sessionDuration.value = data.duree || '1h00'
   dureeTotaleSecondes.value = data.dureeSecondes || 3600
-  elapsed.value = 0
-  startTimer()
+  if (data.startedAt) {
+    elapsed.value = Math.floor((Date.now() - data.startedAt) / 1000)
+  } else {
+    elapsed.value = 0
+  }
+  startTimer(data.startedAt || null)
   questionnaireMoment.value = 'start'
   console.log('QUESTIONNAIRE MOMENT =', questionnaireMoment.value)
   showPage('s-questionnaire')
@@ -683,7 +687,11 @@ function startTimer() {
   timerInterval = setInterval(() => {
     // MODIFIÉ : on ne compte que si la session n'est pas en pause
     if (!isPaused.value) {
-      elapsed.value++;
+      if (startedAt) {
+        elapsed.value = Math.floor((Date.now() - startedAt) / 1000)
+      } else {
+        elapsed.value++
+      }
       if (elapsed.value >= dureeTotaleSecondes.value) {
         clearInterval(timerInterval);
         timerInterval = null;
