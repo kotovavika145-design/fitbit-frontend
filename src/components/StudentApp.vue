@@ -536,7 +536,8 @@ socket.on('connect_error', (err) => {
 //Quand le prof lance la session, on demarre le timer 
 socket.on('session_demarree', async (data) => {
   sessionName.value = data.nom || 'Session en cours'
-  sessionDuration.value = data.duree || '1h00'
+  localStorage.setItem('lunara_student_session_id', data.session_id)
+  sessionDuration.value = data.duree || 'Le temps apparaîtra bientôt.'
   dureeTotaleSecondes.value = data.dureeSecondes || 3600
   if (data.startedAt) {
     elapsed.value = Math.floor((Date.now() - data.startedAt) / 1000)
@@ -1000,17 +1001,19 @@ async function validerQuestionnaire() {
   try {
     // Récupère la session active depuis le backend
     // (session en cours où l'utilisateur va être ajouté)
-    const sessionActiveRes = await fetch(`${API_URL}/sessions/active`)
+    const sessionId = localStorage.getItem('lunara_student_session_id')
 
-    // Conversion de la réponse en JSON
-    const sessionActive = await sessionActiveRes.json()
+    if (!sessionId) {
+      console.error('Aucune session sauvegardée côté étudiant')
+      return
+    }
 
     // Vérifie qu'une session active existe bien
-    if (sessionActive && sessionActive.id) {
+    if (sessionId) {
 
       // Étape 1 : rejoindre la session active
       // On envoie l'utilisateur dans la session en cours
-      await fetch(`${API_URL}/sessions/${sessionActive.id}/join`, {
+      await fetch(`${API_URL}/sessions/${sessionId}/join`, {
 
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -1022,7 +1025,7 @@ async function validerQuestionnaire() {
       // Questionnaire du début
       if (questionnaireMoment.value === 'start') {
         nasaDebutScore.value = averageScore.value
-        const startRes = await fetch(`${API_URL}/sessions/${sessionActive.id}/nasa/start`, {
+        const startRes = await fetch(`${API_URL}/sessions/${sessionId}/nasa/start`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(nasaPayload)
@@ -1036,7 +1039,7 @@ async function validerQuestionnaire() {
 
       // Étape 2 : clôturer la session avec les résultats NASA-TLX
       // Ici on envoie les réponses du questionnaire pour analyse côté backend
-      const putRes = await fetch(`${API_URL}/sessions/${sessionActive.id}/end`, {
+      const putRes = await fetch(`${API_URL}/sessions/${sessionId}/end`, {
 
         method: 'PUT',
 
