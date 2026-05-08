@@ -568,6 +568,12 @@ socket.on('session_demarree', async (data) => {
 socket.on('aller_questionnaire', () => {
   if (timerInterval)clearInterval(timerInterval)
   questionnaireMoment.value = 'end'
+  // On vide les réponses pour que le questionnaire de fin soit à remplir
+    dimensions.value.forEach(dim => {
+      dim.value = 0
+    })
+
+  questionnaireValide.value = false
   showPage('s-questionnaire')
 })
 
@@ -710,6 +716,11 @@ function togglePause() {
 function terminerSession() {
   if (timerInterval) clearInterval(timerInterval);
   questionnaireMoment.value = 'end'
+  dimensions.value.forEach(dim => {
+    dim.value = 0
+  })
+
+  questionnaireValide.value = false
   showPage('s-questionnaire');
 }
 // Fonction asynchrone qui vérifie si l'utilisateur est déjà connecté à Fitbit
