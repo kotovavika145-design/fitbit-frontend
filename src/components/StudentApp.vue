@@ -514,6 +514,7 @@ const historiqueFC = ref([])
 
 const sessionName = ref('Session en cours')
 const sessionGroup = ref('')
+const sessionStartedAt = ref(null)
 
 let fitbitPollInterval = null
 
@@ -539,12 +540,13 @@ socket.on('session_demarree', async (data) => {
   localStorage.setItem('lunara_student_session_id', data.session_id)
   sessionDuration.value = data.duree || 'Le temps apparaîtra bientôt.'
   dureeTotaleSecondes.value = data.dureeSecondes || 3600
-  if (data.startedAt) {
-    elapsed.value = Math.floor((Date.now() - data.startedAt) / 1000)
-  } else {
-    elapsed.value = 0
-  }
-  startTimer(data.startedAt || null)
+  
+  sessionStartedAt.value = data.startedAt || Date.now()
+  localStorage.setItem('lunara_student_session_started_at', sessionStartedAt.value)
+
+  elapsed.value = Math.floor((Date.now() - sessionStartedAt.value) / 1000)
+  startTimer()
+
   questionnaireMoment.value = 'start'
   console.log('QUESTIONNAIRE MOMENT =', questionnaireMoment.value)
   showPage('s-questionnaire')
@@ -687,12 +689,10 @@ function startTimer() {
   */
   timerInterval = setInterval(() => {
     // MODIFIÉ : on ne compte que si la session n'est pas en pause
-    if (!isPaused.value) {
-      if (startedAt) {
-        elapsed.value = Math.floor((Date.now() - startedAt) / 1000)
-      } else {
-        elapsed.value++
-      }
+    if (!isPaused.value && sessionStartedAt.value) {
+      elapsed.value = Math.floor(
+        (Date.now() - sessionStartedAt.value) / 1000
+      )
       if (elapsed.value >= dureeTotaleSecondes.value) {
         clearInterval(timerInterval);
         timerInterval = null;
