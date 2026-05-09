@@ -976,7 +976,7 @@ const scoreGlobal = computed(() => {
     return Math.round(resultatFinal.value.mental_load_score)
   }
 
-  return 0
+  return  Math.round(averageScore.value)
 });
  
 // Niveau de charge déduit du score (pour le badge et le conseil)
