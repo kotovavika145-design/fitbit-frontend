@@ -970,7 +970,16 @@ const averageScore = computed(() => {
  
 //  score global déduit du questionnaire
 // TODO (synchro backend) : sera calculé côté serveur (Fitbit + NASA-TLX)
-const scoreGlobal = computed(() => Math.round(averageScore.value));
+const scoreGlobal = computed(() => {
+  const objectif = Number(chargeMentale.value) || 0
+  const subjectif = Number(averageScore.value) || 0
+
+  if (objectif === 0 && subjectif === 0) return 0
+  if (objectif === 0) return Math.round(subjectif)
+  if (subjectif === 0) return Math.round(objectif)
+
+  return Math.round((objectif * 0.5) + (subjectif * 0.5))
+});
  
 // Niveau de charge déduit du score (pour le badge et le conseil)
 const niveauBadge = computed(() => {
