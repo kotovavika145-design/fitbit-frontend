@@ -972,11 +972,13 @@ const averageScore = computed(() => {
 //  score global déduit du questionnaire
 // TODO (synchro backend) : sera calculé côté serveur (Fitbit + NASA-TLX)
 const scoreGlobal = computed(() => {
-  if (resultatFinal.value?.mental_load_score !== null && resultatFinal.value?.mental_load_score !== undefined) {
-    return Math.round(resultatFinal.value.mental_load_score)
+  const backendScore = resultatFinal.value?.mental_load_score
+
+  if (backendScore !== null && backendScore !== undefined) {
+    return Math.round(Number(backendScore))
   }
 
-  return  Math.round(averageScore.value)
+  return Math.round(averageScore.value)
 });
  
 // Niveau de charge déduit du score (pour le badge et le conseil)
