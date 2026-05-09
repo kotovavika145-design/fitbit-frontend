@@ -507,6 +507,7 @@ const breathingRate = ref(null)
 const chargeMentale = ref(null)
 const questionnaireMoment = ref('start')
 const nasaDebutScore = ref(null)
+const resultatFinal = ref(null)
 // Historique des valeurs pour les graphiques temps réel
 // Chaque entrée = { temps: 'mm:ss', valeur: number }
 const historiqueCharge = ref([])
@@ -971,14 +972,11 @@ const averageScore = computed(() => {
 //  score global déduit du questionnaire
 // TODO (synchro backend) : sera calculé côté serveur (Fitbit + NASA-TLX)
 const scoreGlobal = computed(() => {
-  const objectif = Number(chargeMentale.value) || 0
-  const subjectif = Number(averageScore.value) || 0
+  if (resultatFinal.value?.mental_load_score !== null && resultatFinal.value?.mental_load_score !== undefined) {
+    return Math.round(resultatFinal.value.mental_load_score)
+  }
 
-  if (objectif === 0 && subjectif === 0) return 0
-  if (objectif === 0) return Math.round(subjectif)
-  if (subjectif === 0) return Math.round(objectif)
-
-  return Math.round((objectif * 0.5) + (subjectif * 0.5))
+  return 0
 });
  
 // Niveau de charge déduit du score (pour le badge et le conseil)
@@ -1069,7 +1067,13 @@ async function validerQuestionnaire() {
       })
 
       // Confirmation côté console si la sauvegarde a réussi
-      if (putRes.ok) console.log('NASA-TLX fin sauvegardé !')
+      if (putRes.ok) {
+        const data = await putRes.json()
+        console.log('Résultat final backend :', data)
+
+        resultatFinal.value = data
+        chargeMentale.value = data.mental_load_score
+      }
     }
 
   } catch (e) {
