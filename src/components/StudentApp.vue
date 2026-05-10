@@ -1077,7 +1077,15 @@ async function validerQuestionnaire() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          user_id: userConnecte.value.id
+          user_id: userConnecte.value.id,
+          nasa_dimensions: {
+            mental_demand: dimensions.value[0].value,
+            physical_demand: dimensions.value[1].value,
+            temporal_demand: dimensions.value[2].value,
+            performance: dimensions.value[3].value,
+            effort: dimensions.value[4].value,
+            frustration: dimensions.value[5].value
+          }
         })
       })
 
