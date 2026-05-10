@@ -1052,7 +1052,6 @@ async function validerQuestionnaire() {
         })
         if (startRes.ok) console.log('NASA-TLX début sauvegardé !')
 
-        questionnaireMoment.value = 'end'
         showPage('s-session')
         return
       }
@@ -1075,6 +1074,7 @@ async function validerQuestionnaire() {
 
         resultatFinal.value = data
         chargeMentale.value = data.mental_load_score
+        console.log('Score affiché juste après update =', scoreGlobal.value)
       }
     }
 
