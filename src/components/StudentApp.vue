@@ -804,7 +804,7 @@ async function recupererSampleFitbit(sessionId) {
       effort: dimensions.value[4].value,
       frustration: dimensions.value[5].value
     }
-})
+  })
     })
 
     const data = await res.json()
