@@ -867,11 +867,14 @@ async function recupererSampleFitbit(sessionId) {
 function demarrerPollFitbit(sessionId) {
   if (fitbitPollInterval) clearInterval(fitbitPollInterval)
 
-  //appel immédiat 
-  recupererSampleFitbit(sessionId)
+  if (questionnaireValide.value) {
+    recupererSampleFitbit(sessionId)
+  }
 
   fitbitPollInterval = setInterval(() => {
-    recupererSampleFitbit(sessionId)
+    if (questionnaireValide.value) {
+      recupererSampleFitbit(sessionId)
+    }
   }, 60000)
 }
  
@@ -1098,6 +1101,7 @@ async function validerQuestionnaire() {
           body: JSON.stringify(nasaPayload)
         })
         if (startRes.ok) console.log('NASA-TLX début sauvegardé !')
+        demarrerPollFitbit(sessionId)
 
         showPage('s-session')
         return
