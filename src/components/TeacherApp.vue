@@ -390,10 +390,64 @@
                     <td>{{ s.tlx }}</td>
                     <td class="col-score" :style="{ color: levelColor(s.level) }">{{ s.score }}</td>
                     <td><span class="badge" :class="'badge-' + s.level">● {{ s.levelLabel }}</span></td>
-                    <td><button class="btn btn-ghost" style="padding:5px 12px;font-size:12px">Détails</button></td>
+                    <td><button class="btn btn-ghost" style="padding:5px 12px;font-size:12px" @click="selectedStudent = s">Détails</button></td>
                   </tr>
                 </tbody>
               </table>
+            </div>
+            <div v-if="selectedStudent" class="chart-card" style="margin-top:16px">
+              <div class="chart-card-header">
+                <span class="card-title">Détail étudiant</span>
+
+                <button
+                  class="btn btn-ghost"
+                  @click="selectedStudent = null"
+                >
+                  Fermer
+                </button>
+              </div>
+
+              <div class="stats-row">
+
+                <div class="stat-card">
+                  <div class="stat-label">Étudiant</div>
+                  <div style="font-size:16px">
+                    {{ selectedStudent.name }}
+                  </div>
+                </div>
+
+                <div class="stat-card">
+                  <div class="stat-label">Score global</div>
+
+                  <div
+                    class="stat-value"
+                    :style="{ color: levelColor(selectedStudent.level) }"
+                  >
+                    {{ selectedStudent.score ?? '-' }}
+                  </div>
+                </div>
+
+                <div class="stat-card">
+                  <div class="stat-label">NASA-TLX</div>
+
+                  <div class="stat-value">
+                    {{ selectedStudent.tlx ?? '-' }}
+                  </div>
+                </div>
+
+                <div class="stat-card">
+                  <div class="stat-label">Physiologie</div>
+
+                  <div style="font-size:14px">
+                    FC : {{ selectedStudent.fc ?? '-' }} bpm
+                  </div>
+
+                  <div style="font-size:14px">
+                    HRV : {{ selectedStudent.hrv ?? '-' }} ms
+                  </div>
+                </div>
+
+              </div>
             </div>
           </div>
         </div>
@@ -537,7 +591,8 @@ export default {
       // Historique des sessions passées
       // TODO (synchro backend) : viendra de la base de données
       history: [],
-
+      // Étudiant sélectionné dans la vue groupe
+      selectedStudent: null,
       socket: null,
 
 
@@ -770,6 +825,7 @@ export default {
 
           // Envoie un événement websocket pour prévenir les étudiants
           this.socket.emit('session_terminee', {
+            session_id: this.currentSession.id,
             nom: this.currentSession.name,
           })
         }
