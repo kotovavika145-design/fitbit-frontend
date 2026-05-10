@@ -89,7 +89,7 @@
             <!-- TODO (synchro backend) : remplacer stats par des données du serveur -->
             <div class="stats-row">
               <div class="stat-card">
-                <div class="stat-label">CM Groupe <span class="badge badge-mod">● Modérée</span></div>
+                <div class="stat-label">CM Groupe <span class="badge" :class="'badge-' + niveauGroupe.level">● {{ niveauGroupe.label }}</span></div>
                 <div class="stat-value" style="color:var(--yellow)">{{ stats.cmGroupe }}</div>
                 <div class="stat-sub">Moyenne du groupe /100</div>
               </div>
@@ -241,7 +241,6 @@
                   <label class="form-label">Dispositif de mesure</label>
                   <select class="form-select" v-model="sessionForm.device">
                     <option>Fitbit Inspire 3 (API connectée)</option>
-                    <option>Polar H10</option>
                     <option>Questionnaire seul</option>
                   </select>
                 </div>
@@ -309,15 +308,15 @@
                 <div class="stat-label">Répartition des niveaux</div>
                 <div class="bar-chart-group">
                   <div class="bar-group-item">
-                    <div class="bar-group-rect" style="background:#3dd68c;height:65px"></div>
+                    <div class="bar-group-rect bar-faible" :style="{ height: hauteurBarre(niveaux.faible) + 'px' }"></div>
                     <div class="bar-group-label" style="color:#3dd68c">{{ niveaux.faible }}</div>
                   </div>
                   <div class="bar-group-item">
-                    <div class="bar-group-rect" style="background:#f5c542;height:80px"></div>
+                    <div class="bar-group-rect bar-modere" :style="{ height: hauteurBarre(niveaux.modere) + 'px' }"></div>
                     <div class="bar-group-label" style="color:#f5c542">{{ niveaux.modere }}</div>
                   </div>
                   <div class="bar-group-item">
-                    <div class="bar-group-rect" style="background:#f05364;height:50px"></div>
+                    <div class="bar-group-rect bar-eleve" :style="{ height: hauteurBarre(niveaux.eleve) + 'px' }"></div>
                     <div class="bar-group-label" style="color:#f05364">{{ niveaux.eleve }}</div>
                   </div>
                 </div>
@@ -359,10 +358,10 @@
                   <path d="M15,75 A55,55 0 0,1 125,75" fill="none" stroke="rgba(255,255,255,.08)" stroke-width="10"
                     stroke-linecap="round" />
                   <path d="M15,75 A55,55 0 0,1 125,75" fill="none" stroke="url(#gaugeGrad)" stroke-width="10"
-                    stroke-linecap="round" stroke-dasharray="173" stroke-dashoffset="70" />
+                    stroke-linecap="round" stroke-dasharray="173" :stroke-dashoffset="gaugeOffset" />
                 </svg>
                 <div class="gauge-score" style="color:var(--yellow)">{{ stats.cmGroupe }}</div>
-                <div class="gauge-sub"><span class="badge badge-mod">● CHARGE MODÉRÉE</span></div>
+                <div class="gauge-sub"><span class="badge" :class="'badge-' + niveauGroupe.level">● CHARGE {{ niveauGroupe.label.toUpperCase() }}</span></div>
               </div>
             </div>
 
@@ -617,6 +616,11 @@ export default {
       const map = { '30 minutes': 30, '1 heure': 60, '1h30': 90, '2 heures': 120 }
       return map[this.sessionForm.duration] || 60
     },
+    gaugeOffset() {
+      const score = Number(this.stats.cmGroupe) || 0
+      const maxDash = 173
+      return maxDash - (score / 100) * maxDash
+    },
     pathCMGroupe() {
       const points = this.historiqueCMGroupe
       if (points.length < 2) return ''
@@ -639,6 +643,18 @@ export default {
         return `${i === 0 ? 'M' : 'L'}${x.toFixed(1)},${y.toFixed(1)}`
       }).join(' ')
       return `${ligne} L500,160 L0,160 Z`
+    },
+
+    niveauGroupe() {
+      const score = Number(this.stats.cmGroupe) || 0
+
+      if (score < 40) {
+        return { level: 'faib', label: 'Faible' }
+      }
+      if (score <= 70) {
+        return { level: 'mod', label: 'Modérée' }
+      }
+      return { level: 'elev', label: 'Élevée' }
     },
   },
 
@@ -1023,6 +1039,11 @@ export default {
       document.body.removeChild(a)
       URL.revokeObjectURL(url)  // libère la mémoire
     },
+    hauteurBarre(valeur) {
+      const total = this.niveaux.faible + this.niveaux.modere + this.niveaux.eleve
+      if (!total) return 8
+      return Math.max(8, Math.round((valeur / total) * 90))
+    },
   },
   mounted() {
     const savedSession = JSON.parse(localStorage.getItem('lunara_current_session') || 'null')
@@ -1212,6 +1233,18 @@ body {
   display: flex;
   align-items: center;
   gap: 10px;
+}
+
+.bar-faible {
+  background: #3dd68c;
+}
+
+.bar-modere {
+  background: #f5c542;
+}
+
+.bar-eleve {
+  background: #f05364;
 }
 
 .avatar {
