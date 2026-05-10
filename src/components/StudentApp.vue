@@ -508,6 +508,7 @@ const chargeMentale = ref(null)
 const questionnaireMoment = ref('start')
 const nasaDebutScore = ref(null)
 const resultatFinal = ref(null)
+const nasaStartPayload = ref(null)
 // Historique des valeurs pour les graphiques temps réel
 // Chaque entrée = { temps: 'mm:ss', valeur: number }
 const historiqueCharge = ref([])
@@ -796,7 +797,7 @@ async function recupererSampleFitbit(sessionId) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
       user_id: userConnecte.value.id,
-      nasa_dimensions: {
+      nasa_dimensions: nasaStartPayload.value ?? {
       mental_demand: dimensions.value[0].value,
       physical_demand: dimensions.value[1].value,
       temporal_demand: dimensions.value[2].value,
@@ -1095,6 +1096,7 @@ async function validerQuestionnaire() {
       // Questionnaire du début
       if (questionnaireMoment.value === 'start') {
         nasaDebutScore.value = averageScore.value
+        nasaStartPayload.value = nasaPayload.nasa_dimensions
         const startRes = await fetch(`${API_URL}/sessions/${sessionId}/nasa/start`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
