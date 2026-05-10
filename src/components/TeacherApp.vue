@@ -707,6 +707,33 @@ export default {
       }
     },
 
+    async chargerSessionActiveProf() {
+      try {
+        const res = await fetch(`${API_URL}/sessions/active`)
+        if (!res.ok) return
+
+        const session = await res.json()
+
+        this.currentSession = {
+          id: session.id,
+          name: session.name,
+          date: session.start_time
+            ? new Date(session.start_time + 'Z').toLocaleDateString('fr-FR')
+            : new Date().toLocaleDateString('fr-FR'),
+          elapsed: '00:00',
+          startedAt: session.start_time
+            ? new Date(session.start_time + 'Z').getTime()
+            : Date.now(),
+          durationSeconds: (session.duration_minutes || 60) * 60
+        }
+
+        localStorage.setItem('lunara_current_session', JSON.stringify(this.currentSession))
+        this.demarrerChronoSession()
+      } catch (e) {
+        console.error('Erreur session active prof:', e)
+      }
+    },
+
     // Retourne la couleur CSS selon le niveau de charge
     // Utilisé dans :style="{color: levelColor(...)}"
     levelColor(level) {
@@ -975,7 +1002,14 @@ export default {
     })
     this.chargerHistorique()
     this.chargerEtudiants()
-    this.chargerGroupeDetails()
+
+    if (!this.currentSession.id) {
+      this.chargerSessionActiveProf().then(() => {
+        this.chargerGroupeDetails()
+      })
+    } else {
+      this.chargerGroupeDetails()
+    }
 
     //Rafraichit les donnéees du groupe toutes les 5 secondes 
     this._refreshTimer = setInterval(() => {

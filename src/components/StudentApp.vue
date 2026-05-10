@@ -794,7 +794,17 @@ async function recupererSampleFitbit(sessionId) {
     const res = await fetch(`${API_URL}/sessions/${sessionId}/sample`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ user_id: userConnecte.value.id })
+      body: JSON.stringify({
+      user_id: userConnecte.value.id,
+      nasa_dimensions: {
+      mental_demand: dimensions.value[0].value,
+      physical_demand: dimensions.value[1].value,
+      temporal_demand: dimensions.value[2].value,
+      performance: dimensions.value[3].value,
+      effort: dimensions.value[4].value,
+      frustration: dimensions.value[5].value
+    }
+})
     })
 
     const data = await res.json()
@@ -839,6 +849,16 @@ async function recupererSampleFitbit(sessionId) {
       })
       if (historiqueCharge.value.length > 60) historiqueCharge.value.shift()
     }
+
+    socket.emit('sample_recu', {
+      session_id: sessionId,
+      user_id: userConnecte.value.id,
+      email: userConnecte.value.email,
+      mental_load_score: data.mental_load_score,
+      heart_rate: heartRate.value,
+      hrv: hrv.value,
+      breathing_rate: breathingRate.value
+    })
   } catch (e) {
     console.error('Erreur polling Fitbit:', e)
   }
@@ -877,7 +897,16 @@ async function chargerSessionActive() {
       if (session.start_time) {
         const start = new Date(session.start_time + 'Z')
         const now = new Date()
+
         elapsed.value = Math.max(0, Math.floor((now - start) / 1000))
+
+        if (elapsed.value >= dureeTotaleSecondes.value) {
+          elapsed.value = dureeTotaleSecondes.value
+          questionnaireMoment.value = 'end'
+          showPage('s-questionnaire')
+          return
+        }
+
         startTimer()
       }
 
