@@ -149,7 +149,7 @@
         -->
         <div class="grid-4">
           <div class="card">
-            <div class="card-header"><span class="card-title">Charge mentale</span><<span class="badge" :class="niveauChargeTempsReel">{{ labelChargeTempsReel }}</span></div>
+            <div class="card-header"><span class="card-title">Charge mentale</span><span class="badge mid">Modérée</span></div>
             <div class="card-value" style="color:var(--warn)">{{ chargeMentale ?? '-'}}</div>
             <div class="card-sub">Score sur 100</div>
           </div>
@@ -375,7 +375,7 @@
             <!--
               TODO (synchro backend) : remplacer par la vraie FC de l'API Fitbit.
             -->
-            <div class="card-value">{{ heartRate ?? '-' }}<span>bpm</span><span style="font-size:1rem;color:var(--muted)">bpm</span></div>
+            <div class="card-value">79<span style="font-size:1rem;color:var(--muted)">bpm</span></div>
             <div class="card-sub">Max: 94 · Min: 64</div>
           </div>
           <div class="card">
@@ -383,7 +383,7 @@
             <!--
               TODO (synchro backend) : remplacer par la vraie HRV de l'API Fitbit.
             -->
-            <div class="card-value" style="color:var(--accent2)">{{ hrv ?? '-' }}<span style="font-size:1rem;color:var(--muted)">ms</span></div>
+            <div class="card-value" style="color:var(--accent2)">44<span style="font-size:1rem;color:var(--muted)">ms</span></div>
             <div class="card-sub">Variabilité cardiaque</div>
           </div>
         </div>
@@ -507,8 +507,6 @@ const breathingRate = ref(null)
 const chargeMentale = ref(null)
 const questionnaireMoment = ref('start')
 const nasaDebutScore = ref(null)
-const resultatFinal = ref(null)
-const nasaStartPayload = ref(null)
 // Historique des valeurs pour les graphiques temps réel
 // Chaque entrée = { temps: 'mm:ss', valeur: number }
 const historiqueCharge = ref([])
@@ -516,7 +514,6 @@ const historiqueFC = ref([])
 
 const sessionName = ref('Session en cours')
 const sessionGroup = ref('')
-const sessionStartedAt = ref(null)
 
 let fitbitPollInterval = null
 
@@ -539,16 +536,10 @@ socket.on('connect_error', (err) => {
 //Quand le prof lance la session, on demarre le timer 
 socket.on('session_demarree', async (data) => {
   sessionName.value = data.nom || 'Session en cours'
-  localStorage.setItem('lunara_student_session_id', data.session_id)
-  sessionDuration.value = data.duree || 'Le temps apparaîtra bientôt.'
+  sessionDuration.value = data.duree || '1h00'
   dureeTotaleSecondes.value = data.dureeSecondes || 3600
-  
-  sessionStartedAt.value = data.startedAt || Date.now()
-  localStorage.setItem('lunara_student_session_started_at', sessionStartedAt.value)
-
-  elapsed.value = Math.floor((Date.now() - sessionStartedAt.value) / 1000)
+  elapsed.value = 0
   startTimer()
-
   questionnaireMoment.value = 'start'
   console.log('QUESTIONNAIRE MOMENT =', questionnaireMoment.value)
   showPage('s-questionnaire')
@@ -570,12 +561,6 @@ socket.on('session_demarree', async (data) => {
 socket.on('aller_questionnaire', () => {
   if (timerInterval)clearInterval(timerInterval)
   questionnaireMoment.value = 'end'
-  // On vide les réponses pour que le questionnaire de fin soit à remplir
-    dimensions.value.forEach(dim => {
-      dim.value = 0
-    })
-
-  questionnaireValide.value = false
   showPage('s-questionnaire')
 })
 
@@ -697,10 +682,8 @@ function startTimer() {
   */
   timerInterval = setInterval(() => {
     // MODIFIÉ : on ne compte que si la session n'est pas en pause
-    if (!isPaused.value && sessionStartedAt.value) {
-      elapsed.value = Math.floor(
-        (Date.now() - sessionStartedAt.value) / 1000
-      )
+    if (!isPaused.value) {
+      elapsed.value++;
       if (elapsed.value >= dureeTotaleSecondes.value) {
         clearInterval(timerInterval);
         timerInterval = null;
@@ -718,11 +701,6 @@ function togglePause() {
 function terminerSession() {
   if (timerInterval) clearInterval(timerInterval);
   questionnaireMoment.value = 'end'
-  dimensions.value.forEach(dim => {
-    dim.value = 0
-  })
-
-  questionnaireValide.value = false
   showPage('s-questionnaire');
 }
 // Fonction asynchrone qui vérifie si l'utilisateur est déjà connecté à Fitbit
@@ -795,17 +773,7 @@ async function recupererSampleFitbit(sessionId) {
     const res = await fetch(`${API_URL}/sessions/${sessionId}/sample`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-      user_id: userConnecte.value.id,
-      nasa_dimensions: nasaStartPayload.value ?? {
-      mental_demand: dimensions.value[0].value,
-      physical_demand: dimensions.value[1].value,
-      temporal_demand: dimensions.value[2].value,
-      performance: dimensions.value[3].value,
-      effort: dimensions.value[4].value,
-      frustration: dimensions.value[5].value
-    }
-  })
+      body: JSON.stringify({ user_id: userConnecte.value.id })
     })
 
     const data = await res.json()
@@ -833,16 +801,6 @@ async function recupererSampleFitbit(sessionId) {
     breathingRate.value = data.breathing_rate ?? null
     chargeMentale.value = data.mental_load_score ?? null
 
-    socket.emit('sample_recu', {
-      session_id: sessionId,
-      user_id: userConnecte.value.id,
-      email: userConnecte.value.email,
-      mental_load_score: data.mental_load_score,
-      heart_rate: heartRate.value,
-      hrv: hrv.value,
-      breathing_rate: breathingRate.value
-    })
-
     if (data.mental_load_score !== null && data.mental_load_score !== undefined) {
       historiqueCharge.value.push({
         temps: formattedTime.value,
@@ -850,16 +808,6 @@ async function recupererSampleFitbit(sessionId) {
       })
       if (historiqueCharge.value.length > 60) historiqueCharge.value.shift()
     }
-
-    socket.emit('sample_recu', {
-      session_id: sessionId,
-      user_id: userConnecte.value.id,
-      email: userConnecte.value.email,
-      mental_load_score: data.mental_load_score,
-      heart_rate: heartRate.value,
-      hrv: hrv.value,
-      breathing_rate: breathingRate.value
-    })
   } catch (e) {
     console.error('Erreur polling Fitbit:', e)
   }
@@ -868,14 +816,11 @@ async function recupererSampleFitbit(sessionId) {
 function demarrerPollFitbit(sessionId) {
   if (fitbitPollInterval) clearInterval(fitbitPollInterval)
 
-  if (questionnaireValide.value) {
-    recupererSampleFitbit(sessionId)
-  }
+  //appel immédiat 
+  recupererSampleFitbit(sessionId)
 
   fitbitPollInterval = setInterval(() => {
-    if (questionnaireValide.value) {
-      recupererSampleFitbit(sessionId)
-    }
+    recupererSampleFitbit(sessionId)
   }, 60000)
 }
  
@@ -901,16 +846,7 @@ async function chargerSessionActive() {
       if (session.start_time) {
         const start = new Date(session.start_time + 'Z')
         const now = new Date()
-
         elapsed.value = Math.max(0, Math.floor((now - start) / 1000))
-
-        if (elapsed.value >= dureeTotaleSecondes.value) {
-          elapsed.value = dureeTotaleSecondes.value
-          questionnaireMoment.value = 'end'
-          showPage('s-questionnaire')
-          return
-        }
-
         startTimer()
       }
 
@@ -1014,15 +950,7 @@ const averageScore = computed(() => {
  
 //  score global déduit du questionnaire
 // TODO (synchro backend) : sera calculé côté serveur (Fitbit + NASA-TLX)
-const scoreGlobal = computed(() => {
-  const backendScore = resultatFinal.value?.mental_load_score
-
-  if (backendScore !== null && backendScore !== undefined) {
-    return Math.round(Number(backendScore))
-  }
-
-  return Math.round(averageScore.value)
-});
+const scoreGlobal = computed(() => Math.round(averageScore.value));
  
 // Niveau de charge déduit du score (pour le badge et le conseil)
 const niveauBadge = computed(() => {
@@ -1064,54 +992,43 @@ async function validerQuestionnaire() {
   try {
     // Récupère la session active depuis le backend
     // (session en cours où l'utilisateur va être ajouté)
-    const sessionId = localStorage.getItem('lunara_student_session_id')
+    const sessionActiveRes = await fetch(`${API_URL}/sessions/active`)
 
-    if (!sessionId) {
-      console.error('Aucune session sauvegardée côté étudiant')
-      return
-    }
+    // Conversion de la réponse en JSON
+    const sessionActive = await sessionActiveRes.json()
 
     // Vérifie qu'une session active existe bien
-    if (sessionId) {
+    if (sessionActive && sessionActive.id) {
 
       // Étape 1 : rejoindre la session active
       // On envoie l'utilisateur dans la session en cours
-      await fetch(`${API_URL}/sessions/${sessionId}/join`, {
+      await fetch(`${API_URL}/sessions/${sessionActive.id}/join`, {
 
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          user_id: userConnecte.value.id,
-          nasa_dimensions: {
-            mental_demand: dimensions.value[0].value,
-            physical_demand: dimensions.value[1].value,
-            temporal_demand: dimensions.value[2].value,
-            performance: dimensions.value[3].value,
-            effort: dimensions.value[4].value,
-            frustration: dimensions.value[5].value
-          }
+          user_id: userConnecte.value.id
         })
       })
 
       // Questionnaire du début
       if (questionnaireMoment.value === 'start') {
         nasaDebutScore.value = averageScore.value
-        nasaStartPayload.value = nasaPayload.nasa_dimensions
-        const startRes = await fetch(`${API_URL}/sessions/${sessionId}/nasa/start`, {
+        const startRes = await fetch(`${API_URL}/sessions/${sessionActive.id}/nasa/start`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(nasaPayload)
         })
         if (startRes.ok) console.log('NASA-TLX début sauvegardé !')
-        demarrerPollFitbit(sessionId)
 
+        questionnaireMoment.value = 'end'
         showPage('s-session')
         return
       }
 
       // Étape 2 : clôturer la session avec les résultats NASA-TLX
       // Ici on envoie les réponses du questionnaire pour analyse côté backend
-      const putRes = await fetch(`${API_URL}/sessions/${sessionId}/end`, {
+      const putRes = await fetch(`${API_URL}/sessions/${sessionActive.id}/end`, {
 
         method: 'PUT',
 
@@ -1121,14 +1038,7 @@ async function validerQuestionnaire() {
       })
 
       // Confirmation côté console si la sauvegarde a réussi
-      if (putRes.ok) {
-        const data = await putRes.json()
-        console.log('Résultat final backend :', data)
-
-        resultatFinal.value = data
-        chargeMentale.value = data.mental_load_score
-        console.log('Score affiché juste après update =', scoreGlobal.value)
-      }
+      if (putRes.ok) console.log('NASA-TLX fin sauvegardé !')
     }
 
   } catch (e) {
