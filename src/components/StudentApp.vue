@@ -149,7 +149,7 @@
         -->
         <div class="grid-4">
           <div class="card">
-            <div class="card-header"><span class="card-title">Charge mentale</span><span class="badge mid">Modérée</span></div>
+            <div class="card-header"><span class="card-title">Charge mentale</span><<span class="badge" :class="niveauChargeTempsReel">{{ labelChargeTempsReel }}</span></div>
             <div class="card-value" style="color:var(--warn)">{{ chargeMentale ?? '-'}}</div>
             <div class="card-sub">Score sur 100</div>
           </div>
@@ -375,7 +375,7 @@
             <!--
               TODO (synchro backend) : remplacer par la vraie FC de l'API Fitbit.
             -->
-            <div class="card-value">79<span style="font-size:1rem;color:var(--muted)">bpm</span></div>
+            <div class="card-value">{{ heartRate ?? '-' }}<span>bpm</span><span style="font-size:1rem;color:var(--muted)">bpm</span></div>
             <div class="card-sub">Max: 94 · Min: 64</div>
           </div>
           <div class="card">
@@ -383,7 +383,7 @@
             <!--
               TODO (synchro backend) : remplacer par la vraie HRV de l'API Fitbit.
             -->
-            <div class="card-value" style="color:var(--accent2)">44<span style="font-size:1rem;color:var(--muted)">ms</span></div>
+            <div class="card-value" style="color:var(--accent2)">{{ hrv ?? '-' }}<span style="font-size:1rem;color:var(--muted)">ms</span></div>
             <div class="card-sub">Variabilité cardiaque</div>
           </div>
         </div>
@@ -821,6 +821,16 @@ async function recupererSampleFitbit(sessionId) {
     hrv.value = data.hrv ?? null
     breathingRate.value = data.breathing_rate ?? null
     chargeMentale.value = data.mental_load_score ?? null
+
+    socket.emit('sample_recu', {
+      session_id: sessionId,
+      user_id: userConnecte.value.id,
+      email: userConnecte.value.email,
+      mental_load_score: data.mental_load_score,
+      heart_rate: heartRate.value,
+      hrv: hrv.value,
+      breathing_rate: breathingRate.value
+    })
 
     if (data.mental_load_score !== null && data.mental_load_score !== undefined) {
       historiqueCharge.value.push({
