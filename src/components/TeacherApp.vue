@@ -253,6 +253,40 @@
                   </select>
                 </div>
 
+                <div class="form-group">
+                  <label class="form-label">Seuils de charge mentale</label>
+
+                  <div class="custom-duration">
+                    <span class="duration-unit">Faible &lt;</span>
+
+                    <input
+                      class="form-input"
+                      type="number"
+                      v-model.number="thresholds.lowMax"
+                      min="0"
+                      max="100"
+                      style="width:80px;text-align:center"
+                    />
+
+                    <span class="duration-unit">Modérée ≤</span>
+
+                    <input
+                      class="form-input"
+                      type="number"
+                      v-model.number="thresholds.moderateMax"
+                      min="0"
+                      max="100"
+                      style="width:80px;text-align:center"
+                    />
+                  </div>
+
+                  <div style="font-size:12px;color:var(--muted);margin-top:6px">
+                    Faible : &lt; {{ thresholds.lowMax }} ·
+                    Modérée : {{ thresholds.lowMax }}–{{ thresholds.moderateMax }} ·
+                    Élevée : &gt; {{ thresholds.moderateMax }}
+                  </div>
+                </div>
+
                 <div class="form-actions">
                   <button class="btn btn-ghost">Enregistrer en brouillon</button>
                   <!-- lancerSession() démarre le chrono et redirige vers le dashboard -->
@@ -265,9 +299,15 @@
                 <div class="side-card">
                   <div class="side-title">Étudiants sélectionnés</div>
                   <!-- TODO (synchro backend) : sessionStudents viendra du backend -->
-                  <div class="student-item" v-for="s in sessionStudents" :key="s.name">
-                    <div class="s-avatar" :style="{ background: s.color }">{{ s.initials }}</div>
+                    <div class="student-item" v-for="s in sessionStudents" :key="s.id">
+                    <input type="checkbox" v-model="s.selected" />
+
+                    <div class="s-avatar" :style="{ background: s.color }">
+                      {{ s.initials }}
+                    </div>
+
                     <span style="font-size:13px">{{ s.name }}</span>
+
                     <span v-if="s.connected" class="fitbit-badge">● FITBIT ✓</span>
                     <span v-else class="disconnected">Non connecté</span>
                   </div>
@@ -556,6 +596,11 @@ export default {
         fcMoyenne: 0,
         connectes: 0,
         total: 0,
+      },
+
+      thresholds: {
+        lowMax: 40,
+        moderateMax: 70,
       },
 
       // Étudiants pour les barres du dashboard
