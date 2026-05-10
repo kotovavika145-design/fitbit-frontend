@@ -921,6 +921,8 @@ export default {
           this._timer = null
           this.sessionTerminee = true
 
+          localStorage.removeItem('lunara_current_session')
+
           // Envoie un événement websocket pour prévenir les étudiants
           this.socket.emit('session_terminee', {
             session_id: this.currentSession.id,
