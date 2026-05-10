@@ -482,7 +482,17 @@
                     <td style="color:var(--muted)">{{ h.group }}</td>
                     <td>{{ h.students }}</td>
                     <td class="col-score" :style="{ color: levelColor(h.level) }">{{ h.cm }}</td>
-                    <td><span class="badge" :class="'badge-' + h.level">● {{ h.levelLabel }}</span></td>
+                    <td><span
+                          v-if="h.level !== 'wait'"
+                          class="badge"
+                          :class="'badge-' + h.level"
+                        >
+                          ● {{ h.levelLabel }}
+                        </span>
+
+                        <span v-else style="color:var(--muted);font-size:12px">
+                          En attente
+                        </span></td>
                     <td><button class="btn btn-ghost" style="padding:5px 14px;font-size:12px"
                         @click="exportPDF('rapport', h)">Rapport</button></td>
                   </tr>
@@ -667,27 +677,54 @@ export default {
     },
 
     async chargerHistorique() {
-      try {
+  try {
+    const response = await fetch(`${API_URL}/sessions/created_by/${this.userConnecte.id}`)
+    if (!response.ok) return
 
-        const response = await fetch(`${API_URL}/sessions/created_by/${this.userConnecte.id}`)
-        if (response.ok) {
-          const sessions = await response.json()
-          if (sessions.length > 0) {
-            this.history = sessions.map(s => ({
-              date: s.start_time ? new Date(s.start_time).toLocaleDateString('fr-FR') : 'Non démarrée',
-              course: s.name || 'Session sans titre',
-              group: s.group_name || 'L2U2',
-              students: 0,
-              cm: s.mental_load_score ? Math.round(s.mental_load_score) : '—',
-              level: s.mental_load_level === 'low' ? 'faib' : s.mental_load_level === 'high' ? 'elev' : 'mod',
-              levelLabel: s.mental_load_level === 'low' ? 'Faible' : s.mental_load_level === 'high' ? 'Élevé' : 'Modéré'
-            }))
-          }
+    const sessions = await response.json()
+
+    this.history = sessions.map(s => {
+      const hasScore =
+        s.mental_load_score !== null &&
+        s.mental_load_score !== undefined
+
+      let level = 'wait'
+      let levelLabel = 'En attente'
+
+      if (hasScore) {
+        if (s.mental_load_level === 'low') {
+          level = 'faib'
+          levelLabel = 'Faible'
+        } else if (s.mental_load_level === 'high') {
+          level = 'elev'
+          levelLabel = 'Élevé'
+        } else {
+          level = 'mod'
+          levelLabel = 'Modéré'
         }
-      } catch (e) {
-        console.error('Impossible de charger l\'historique', e)
       }
-    },
+
+      return {
+        id: s.id,
+        date: s.start_time
+          ? new Date(s.start_time + 'Z').toLocaleDateString('fr-FR')
+          : (
+              s.end_time
+                ? new Date(s.end_time + 'Z').toLocaleString('fr-FR')
+                : 'Non démarrée'
+            ),
+        course: s.name || 'Session sans titre',
+        group: s.group_name || '—',
+        students: s.participants_count ?? '—',
+        cm: hasScore ? Math.round(s.mental_load_score) : '—',
+        level,
+        levelLabel
+      }
+    })
+  } catch (e) {
+    console.error('Impossible de charger l\'historique', e)
+  }
+},
 
     //Charge les details des etudinatspour la vue groupe 
     //Appelle le bcakend pour recuperer tous les utilisateurs 
