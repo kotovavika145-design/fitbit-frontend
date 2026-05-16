@@ -843,16 +843,21 @@ async function chargerSessionActive() {
         sessionDuration.value = `${session.duration_minutes} minutes`
       }
       
-      if (elapsed.value > dureeTotaleSecondes.value) {
+      if (session.start_time) {
+      const start = new Date(session.start_time + 'Z')
+      const now = new Date()
+
+      const secondes = Math.max(0, Math.floor((now - start) / 1000))
+
+      // Empêche les vieux timers absurdes
+      if (secondes > dureeTotaleSecondes.value) {
         elapsed.value = 0
+      } else {
+        elapsed.value = secondes
       }
 
-      if (session.start_time) {
-        const start = new Date(session.start_time + 'Z')
-        const now = new Date()
-        elapsed.value = Math.max(0, Math.floor((now - start) / 1000))
-        startTimer()
-      }
+      startTimer()
+    }
 
       demarrerPollFitbit(session.id)
     }
