@@ -842,6 +842,10 @@ async function chargerSessionActive() {
         dureeTotaleSecondes.value = session.duration_minutes * 60
         sessionDuration.value = `${session.duration_minutes} minutes`
       }
+      
+      if (elapsed.value > dureeTotaleSecondes.value) {
+        elapsed.value = 0
+      }
 
       if (session.start_time) {
         const start = new Date(session.start_time + 'Z')
