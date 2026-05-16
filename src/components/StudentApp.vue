@@ -828,39 +828,52 @@ async function chargerSessionActive() {
   try {
     const res = await fetch(`${API_URL}/sessions/active`)
 
-    if (res.ok) {
-      const session = await res.json()
-      console.log("Session active :", session)
-
-      sessionName.value = session.name || 'Session en cours'
-      sessionGroup.value = session.group_name || ''
-
-      if (timerInterval) clearInterval(timerInterval)
-      if (fitbitPollInterval) clearInterval(fitbitPollInterval)
-
-      if (session.duration_minutes) {
-        dureeTotaleSecondes.value = session.duration_minutes * 60
-        sessionDuration.value = `${session.duration_minutes} minutes`
-      }
-      
-      if (session.start_time) {
-        const start = new Date(session.start_time + 'Z')
-        const now = new Date()
-
-        const secondes = Math.max(0, Math.floor((now - start) / 1000))
-
-        // Empêche les vieux timers absurdes
-        if (secondes > dureeTotaleSecondes.value) {
-          elapsed.value = 0
-        } else {
-          elapsed.value = secondes
-        }
-
-        startTimer()
-      }
-
-      demarrerPollFitbit(session.id)
+    if (!res.ok) {
+      sessionName.value = 'Aucune session en cours'
+      sessionGroup.value = ''
+      sessionDuration.value = '-'
+      elapsed.value = 0
+      return
     }
+
+    const session = await res.json()
+    console.log("Session active :", session)
+
+    if (session.status !== 'active' || !session.start_time) {
+      sessionName.value = 'Aucune session en cours'
+      sessionGroup.value = ''
+      sessionDuration.value = '-'
+      elapsed.value = 0
+      return
+    }
+
+    if (timerInterval) clearInterval(timerInterval)
+    if (fitbitPollInterval) clearInterval(fitbitPollInterval)
+
+    if (session.duration_minutes) {
+      dureeTotaleSecondes.value = session.duration_minutes * 60
+      sessionDuration.value = `${session.duration_minutes} minutes`
+    }
+
+    const start = new Date(session.start_time + 'Z')
+    const now = new Date()
+    const secondes = Math.max(0, Math.floor((now - start) / 1000))
+
+    if (secondes >= dureeTotaleSecondes.value) {
+      sessionName.value = 'Aucune session en cours'
+      sessionGroup.value = ''
+      sessionDuration.value = '-'
+      elapsed.value = 0
+      return
+    }
+
+    sessionName.value = session.name || 'Session en cours'
+    sessionGroup.value = session.group_name || ''
+    elapsed.value = secondes
+
+    startTimer()
+    demarrerPollFitbit(session.id)
+
   } catch (e) {
     console.error("Erreur session active:", e)
   }
