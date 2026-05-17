@@ -921,8 +921,6 @@ export default {
           this._timer = null
           this.sessionTerminee = true
 
-          localStorage.removeItem('lunara_current_session')
-
           // Envoie un événement websocket pour prévenir les étudiants
           this.socket.emit('session_terminee', {
             session_id: this.currentSession.id,
@@ -949,60 +947,39 @@ export default {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-          created_by: this.userConnecte.id,
-          name: this.sessionForm.name || 'Session sans titre',
-          group_name: this.sessionForm.group,
-          duration_minutes: this.dureeEnMinutes,
-          device: this.sessionForm.device,
-          questionnaire_type: this.sessionForm.questionnaire
-    })
+            created_by: this.userConnecte.id,
+            name: this.sessionForm.name || 'Session sans titre',
+            group_name: this.sessionForm.group,
+            duration_minutes: this.dureeEnMinutes,
+            device: this.sessionForm.device,
+            questionnaire_type: this.sessionForm.questionnaire,
+            participant_ids: this.sessionStudents
+              .filter(s => s.selected)
+              .map(s => s.id),
+          })
         })
-        if (response.ok) {
-          const session = await response.json()
-          this.currentSession.id = session.id
-          console.log('Session créée avec id:', session.id)
+        if (!response.ok) {
+          console.error('Erreur backend création session')
+          return
         }
+        const session = await response.json()
+        const startedAt = Date.now()
+        this.currentSession = {
+          id: session.id,
+          name: session.name,
+          date: new Date().toLocaleDateString('fr-FR'),
+          elapsed: '00:00',
+          startedAt,
+          durationSeconds: this.dureeEnMinutes*60,
+        }
+
+        localStorage.setItem('lunara_current_session', JSON.stringify(this.currentSession))
+        console.log('Session créée avec id:', session.id)
+        this.demarrerChronoSession()
       } catch (e) {
         console.error('Erreur création session', e)
+        return
       }
-
-      // Calcule la durée totale en secondes
-      let dureeMax = 0
-      if (this.sessionForm.durationType === 'custom') {
-        dureeMax = (this.sessionForm.customHours || 0) * 3600
-                + (this.sessionForm.customMinutes || 0) * 60
-      } else {
-        const map = {
-          '30 minutes': 1800,
-          '1 heure':    3600,
-          '1h30':       5400,
-          '2 heures':   7200,
-        }
-        dureeMax = map[this.sessionForm.duration] || 3600
-      }
-
-      if (dureeMax === 0) dureeMax = 60
-      let seconds = 0
-
-      if (this._timer) clearInterval(this._timer)
-
-      this._timer = setInterval(() => {
-        seconds++
-        const m = String(Math.floor(seconds / 60)).padStart(2, '0')
-        const s = String(seconds % 60).padStart(2, '0')
-        this.currentSession.elapsed = `${m}:${s}`
-
-        if (seconds >= dureeMax) {
-          clearInterval(this._timer)
-          this._timer = null
-          this.sessionTerminee = true
-
-          //EMet ;'evenement Websocket pourrediriger les etudiants vers le questionnaire'
-          this.socket.emit('session_terminee', {
-            nom: this.currentSession.name
-          })
-        }
-      }, 1000)
 
       this.sessionCreated = true
       //Emet l'evenement WebSocket pour informer les etudiants 
@@ -1010,7 +987,8 @@ export default {
         session_id: this.currentSession.id,
         duree: this.dureeAffichee,
         dureeSecondes: this.dureeEnMinutes * 60,
-        nom: this.currentSession.name
+        nom: this.currentSession.name,
+        startedAt: this.currentSession.startedAt
       })
       this.currentPage = 'dashboard'
       setTimeout(() => { this.sessionCreated = false }, 5000)
