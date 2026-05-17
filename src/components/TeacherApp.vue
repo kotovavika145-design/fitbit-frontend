@@ -921,6 +921,8 @@ export default {
           this._timer = null
           this.sessionTerminee = true
 
+          localStorage.removeItem('lunara_current_session')
+
           // Envoie un événement websocket pour prévenir les étudiants
           this.socket.emit('session_terminee', {
             session_id: this.currentSession.id,
@@ -982,25 +984,16 @@ export default {
       }
 
       this.sessionCreated = true
+      //Emet l'evenement WebSocket pour informer les etudiants 
+      this.socket.emit('session_lancee', {
+        session_id: this.currentSession.id,
+        duree: this.dureeAffichee,
+        dureeSecondes: this.dureeEnMinutes * 60,
+        nom: this.currentSession.name,
+        startedAt: this.currentSession.startedAt
+      })
       this.currentPage = 'dashboard'
       setTimeout(() => { this.sessionCreated = false }, 5000)
-
-      // WebSocket : seulement si connecté
-      try {
-        if (this.socket && this.socket.connected) {
-          this.socket.emit('session_lancee', {
-            session_id: this.currentSession.id,
-            duree: this.dureeAffichee,
-            dureeSecondes: this.dureeEnMinutes * 60,
-            nom: this.currentSession.name,
-            startedAt: this.currentSession.startedAt
-          })
-        } else {
-          console.warn('Socket non connecté, session lancée seulement côté interface')
-        }
-      } catch (e) {
-        console.error('Erreur socket session_lancee', e)
-      }
     },
 
     // Génère et télécharge un fichier HTML avec les données
